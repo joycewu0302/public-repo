@@ -1,1 +1,1 @@
-# my-first-repo
+# public-repo
