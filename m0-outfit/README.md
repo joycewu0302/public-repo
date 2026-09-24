@@ -20,7 +20,7 @@
 
 | 項目 | 內容 |
 |------|------|
-| 工具 | （例：agy／Claude Code／Codex／未使用） |
+| 工具 | gemini、agy、gpt（例：agy／Claude Code／Codex／未使用） |
 | 日期 | |
 | prompt 摘要 | |
 | 採用範圍 | （哪些碼、哪些想法來自 AI，你自己改了什麼） |
