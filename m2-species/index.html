@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>賽博後未來生物 3D 觀測儀 (CYBER-DRACO VPR-9)</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Load p5.js library (Local file) -->
+  <script src="p5.min.js"></script>
+</head>
+<body>
+  <!-- 3D WebGL Canvas Container -->
+  <div id="canvas-container"></div>
+
+  <!-- Sci-Fi Cyberpunk HUD Overlay -->
+  <div class="hud-overlay">
+    <!-- Top Header -->
+    <header class="hud-header">
+      <div class="title-badge">
+        <h1>
+          <span>賽博後未來滑翔生物</span>
+          <span class="tag">SPECIMEN: VPR-DRACO 09</span>
+        </h1>
+        <p>3D 生物機械學交互觀察儀 // p5.js WEBGL ENGINE</p>
+      </div>
+
+      <div class="status-indicators">
+        <div class="indicator">
+          <div class="pulse-dot"></div>
+          <span>頭頂微型紅光信標: 規律同步中</span>
+        </div>
+        <div class="indicator">
+          <div class="aero-dot"></div>
+          <span>流線低風阻滑翔: 啟動</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Bottom Left Telemetry HUD -->
+    <div class="telemetry-card">
+      <div class="telemetry-title">
+        <span>BIOMETRIC & AVIONICS TELEMETRY</span>
+        <span>SYS.OK</span>
+      </div>
+      <div class="telemetry-row">
+        <span>滑翔空速 (Airspeed)</span>
+        <span class="val" id="val-airspeed">38.5 m/s</span>
+      </div>
+      <div class="telemetry-row">
+        <span>極致流線風阻係數 (Cd)</span>
+        <span class="val" id="val-drag">Cd 0.076</span>
+      </div>
+      <div class="telemetry-row">
+        <span>壁虎吸盤爪附力 (前3/後4指)</span>
+        <span class="val" id="val-suction">42 kPa (STANDBY)</span>
+      </div>
+      <div class="telemetry-row">
+        <span>微型導航信標 (Beacon)</span>
+        <span class="val" id="val-beacon">1.20 Hz / LOCKED</span>
+      </div>
+    </div>
+
+    <!-- Bottom Center Operation Hint -->
+    <div class="help-hint">
+      🖱️ 左鍵拖曳旋轉 3D 視角 ｜ 滾輪縮放距離 ｜ 右鍵/Shift 平移 ｜ 點擊右側特徵鏡頭直接特寫
+    </div>
+  </div>
+
+  <!-- Right Floating Control & Feature Inspector Panel -->
+  <aside class="hud-panel">
+    <!-- Section 1: Creature Requirements Fast-Inspect -->
+    <div class="panel-section">
+      <div class="section-title">
+        <span>🔍 六大外型構造特寫鏡頭</span>
+      </div>
+      <div class="feature-list">
+        <button class="feature-btn active" data-feature="overview" onclick="focusFeature('overview')">
+          <span class="num">全</span> 全景概覽 (Full Overview)
+        </button>
+        <button class="feature-btn" data-feature="streamline" onclick="focusFeature('streamline')">
+          <span class="num">1</span> 蜥蜴流線身形 (Streamlined Body)
+        </button>
+        <button class="feature-btn" data-feature="gecko-feet" onclick="focusFeature('gecko-feet')">
+          <span class="num">2</span> 壁虎吸盤腳趾 (前3指 / 後4指)
+        </button>
+        <button class="feature-btn" data-feature="fangs" onclick="focusFeature('fangs')">
+          <span class="num">3</span> 閉口微露短尖牙 (Subtle Viper Fangs)
+        </button>
+        <button class="feature-btn" data-feature="membrane" onclick="focusFeature('membrane')">
+          <span class="num">4</span> 前腳腋下滑翔薄膜 (Gliding Patagium)
+        </button>
+        <button class="feature-btn" data-feature="head-cyber" onclick="focusFeature('head-cyber')">
+          <span class="num">5</span> 頭頂微型裝置與紅光 (Compact Cyber-Unit)
+        </button>
+      </div>
+    </div>
+
+    <!-- Section 2: Motion Pose Mode -->
+    <div class="panel-section">
+      <div class="section-title">
+        <span>⚙️ 生態姿態模式</span>
+      </div>
+      <div class="button-grid">
+        <button class="mode-btn active" data-mode="gliding" onclick="setPoseMode('gliding')">
+          🪂 高空滑翔
+        </button>
+        <button class="mode-btn" data-mode="perched" onclick="setPoseMode('perched')">
+          🧗 壁面吸附
+        </button>
+        <button class="mode-btn" data-mode="patrol" onclick="setPoseMode('patrol')">
+          🌊 空中巡航
+        </button>
+        <button class="mode-btn" data-mode="crawl" onclick="setPoseMode('crawl')">
+          🦎 地面爬行
+        </button>
+        <button class="mode-btn" onclick="focusFeature('overview')">
+          🔄 重置視角
+        </button>
+      </div>
+    </div>
+
+    <!-- Section 3: Fine Dynamic Adjustments -->
+    <div class="panel-section">
+      <div class="section-title">
+        <span>🎛️ 動態參數調節</span>
+      </div>
+      <div class="slider-group">
+        <div class="slider-item">
+          <div class="slider-label">
+            <span>腋下薄膜展翼開合</span>
+            <span id="label-spread">100%</span>
+          </div>
+          <input type="range" min="0.6" max="1.3" step="0.05" value="1.0" oninput="
+            updateSetting('membraneSpread', this.value);
+            document.getElementById('label-spread').innerText = Math.round(this.value * 100) + '%';
+          ">
+        </div>
+
+        <div class="slider-item">
+          <div class="slider-label">
+            <span>尾部與脊椎律動速率</span>
+            <span id="label-sway">1.0x</span>
+          </div>
+          <input type="range" min="0.2" max="2.5" step="0.1" value="1.0" oninput="
+            updateSetting('swaySpeed', this.value);
+            document.getElementById('label-sway').innerText = this.value + 'x';
+          ">
+        </div>
+
+        <div class="slider-item">
+          <div class="slider-label">
+            <span>頭頂紅光信標頻率</span>
+            <span id="label-pulse">1.0x</span>
+          </div>
+          <input type="range" min="0.3" max="3.0" step="0.1" value="1.0" oninput="
+            updateSetting('pulseRate', this.value);
+            document.getElementById('label-pulse').innerText = this.value + 'x';
+          ">
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 4: Visual Modes -->
+    <div class="panel-section">
+      <div class="section-title">
+        <span>🎨 渲染模式與視覺特效</span>
+      </div>
+      <label class="toggle-item">
+        <span>空氣動力學風洞流線 (Streamlines)</span>
+        <input type="checkbox" checked onchange="updateSetting('showStreamlines', this.checked)">
+      </label>
+      <label class="toggle-item">
+        <span>賽博全息結構網格 (Wireframe)</span>
+        <input type="checkbox" onchange="updateSetting('wireframe', this.checked)">
+      </label>
+    </div>
+
+    <!-- Section 5: Anatomical Briefing -->
+    <div class="panel-section">
+      <div class="section-title">
+        <span>📋 生物特徵說明書</span>
+      </div>
+      <div style="font-size: 0.72rem; line-height: 1.6; color: var(--text-muted);">
+        <p><b style="color:var(--text-main)">1. 蜥蜴流線身形：</b>爬蟲類低重心四肢、楔形吻部、縮小精緻雙眼與低阻長尾翼。</p>
+        <p><b style="color:var(--text-main)">2. 壁虎吸盤腳趾：</b>前腳 3 指、後腳 4 指，清晰分開不黏連，每指具擴展吸盤肉墊與剛毛皮褶。</p>
+        <p><b style="color:var(--text-main)">3. 閉口微露尖牙：</b>嘴部閉合時，上顎兩根尖牙短短一截稍微露出在唇外。</p>
+        <p><b style="color:var(--text-main)">4. 腋下滑翔薄膜：</b>生於胸側與前臂之間，完全獨立於手掌與腳趾之外。</p>
+        <p><b style="color:var(--text-main)">5. 流線細長身形：</b>水滴形低風阻截面，減少高速滑翔空氣阻力。</p>
+        <p><b style="color:var(--text-main)">6. 頭頂微型裝置：</b>精巧微型化的機械導航模組，兩根向前小角與規律閃爍紅光點。</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- p5.js Sketch Script -->
+  <script src="sketch.js"></script>
+</body>
+</html>
