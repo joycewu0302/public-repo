@@ -1,0 +1,2561 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>極簡 7 方塊灰色蜥蜴生物 (平滑轉向對齊後移動版)</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+    body {
+      background: #18191d;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+    .hud {
+      position: absolute;
+      z-index: 10;
+      pointer-events: none;
+    }
+    .info-card {
+      top: 18px;
+      left: 20px;
+      background: rgba(22, 24, 28, 0.9);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 16px 22px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .badge {
+      font-size: 0.72rem;
+      background: #334155;
+      color: #94a3b8;
+      border: 1px solid #475569;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+    .sub-desc {
+      font-size: 0.84rem;
+      color: #94a3b8;
+      font-family: ui-monospace, monospace;
+    }
+    .live-status {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #38bdf8;
+      font-family: ui-monospace, monospace;
+      margin-top: 4px;
+    }
+    .control-card {
+      bottom: 20px;
+      right: 20px;
+      pointer-events: auto;
+      background: rgba(22, 24, 28, 0.9);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 16px 20px;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-width: 250px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    }
+    .btn-group {
+      display: flex;
+      gap: 8px;
+    }
+    .ctrl-hint {
+      font-size: 0.72rem;
+      color: #64748b;
+      text-align: center;
+      letter-spacing: 0.02em;
+      margin-top: 2px;
+    }
+    button {
+      flex: 1;
+      background: #282c34;
+      color: #cbd5e1;
+      border: 1px solid #3f444e;
+      padding: 8px 12px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    button:hover {
+      background: #383e4a;
+    }
+    button.active {
+      background: #475569;
+      border-color: #94a3b8;
+      color: #ffffff;
+    }
+    button.btn-bath {
+      background: #0e7490;
+      border-color: #22d3ee;
+      color: #ecfeff;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    button.btn-bath:hover {
+      background: #0891b2;
+      border-color: #67e8f9;
+    }
+    button.btn-sex.female {
+      background: #831843;
+      border-color: #f472b6;
+      color: #fce7f3;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    button.btn-sex.female:hover {
+      background: #9d174d;
+      border-color: #f9a8d4;
+    }
+    button.btn-baby.on {
+      background: #713f12;
+      border-color: #fbbf24;
+      color: #fef3c7;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    button.btn-baby.on:hover {
+      background: #854d0e;
+      border-color: #fcd34d;
+    }
+    .tips {
+      bottom: 20px;
+      left: 20px;
+      font-size: 0.8rem;
+      color: #64748b;
+      background: rgba(18, 20, 24, 0.75);
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <div class="hud info-card">
+    <div class="title">
+      後未來生物
+    </div>
+    <div class="sub-desc">
+      幾何結構：頭(1) + 身體(1) + 尾巴(1) + 貼地掃動四肢(4) ＝ 嚴格 7 個灰長方體
+    </div>
+    <div class="live-status" id="status-text">初始化中...</div>
+  </div>
+
+  <div class="hud control-card">
+    <div class="btn-group">
+      <button class="btn-bath" onclick="bathNow()">立即下水（直接走去水池游泳）</button>
+    </div>
+    <div class="btn-group">
+      <button id="btn-sex" class="btn-sex" onclick="toggleGender()">性別：雄性</button>
+    </div>
+    <div class="btn-group">
+      <button id="btn-baby" class="btn-baby" onclick="toggleCarryBaby()">帶孩子：關</button>
+    </div>
+    <div class="btn-group">
+      <button id="btn-cam" class="active" onclick="resetCameraView()">重設正對視角</button>
+      <button id="btn-run" onclick="toggleMove()">漫遊開關：開</button>
+    </div>
+    <div class="btn-group">
+      <button onclick="triggerNextMoveNow()">開始下一輪移動</button>
+      <button onclick="creature.startClimbWall()">前往爬右側牆</button>
+    </div>
+    <div class="btn-group">
+      <button onclick="climbWithChoice('GLIDE')">爬牆 ➔ 頂端滑翔</button>
+      <button onclick="climbWithChoice('CLIMB_DOWN')">爬牆 ➔ 頂端下爬</button>
+    </div>
+    <div class="ctrl-hint">滾輪縮放 · 左鍵拖曳旋轉 · 右鍵拖曳平移</div>
+  </div>
+
+  <script>
+    let creature;
+    let autoMoveEnabled = true;
+    // 性別：'male' 雄性（目前外觀不變）、'female' 雌性（背上多一個小口袋、尾端鰭片縮小至 2/3）
+    let creatureGender = 'male';
+    let carryBaby = false;        // 雌性是否背著孩子（口袋裡兩隻並排的迷你雄性個體）
+    const BABY_SCALE = 0.306;     // 孩子縮小比例（原 0.34 縮小為 0.9 倍）
+
+    // 孩子在媽媽背上的擺放：兩隻孩子並排在背上口袋中，整隻往頭部方向挪出，
+    // 讓頭、一小段軀幹與前肢露在口袋外，軀幹露出的長度剛好是被口袋蓋住長度的 1/3 左右。
+    // （前肢就掛在軀幹兩側 18,±21 的肩部，和成體同位置）
+    const BABY_OFFSET_X = 7.74;                       // 孩子軀幹中心往 +X（頭部方向）的偏移（原 8.6 * 0.9）
+    const BABY_OFFSET_Y = 8.55;                       // 兩隻孩子橫向並排的 Y 偏移（原 9.5 * 0.9，分別位於 ±BABY_OFFSET_Y）
+    const BABY_BODY_Z = 9.95;                         // 孩子軀幹中心高度（前肢剛好貼在媽媽背上，下半身略陷進背裡）
+
+    // 雌性背上的口袋（俯看是一片貼在背上的薄片；帶孩子時被撐成一個淺袋體，蓋住兩隻孩子後半段）
+    const POCKET_SCALE = (1 / 3) * 1.53 * 0.9;  // 口袋縱向尺寸縮小為 0.9 倍
+    const POCKET_L = 56 * POCKET_SCALE;   // 縱向 ≈ 25.70（原 28.56 * 0.9）
+    const POCKET_W = 36;                  // 橫向尺寸縮小為 0.9 倍（原 40 * 0.9 = 36）
+    const POCKET_T = 0.9;                 // 厚度（薄薄一層）
+    const POCKET_Z = 9 + 0.02;            // 沒帶孩子時：口袋底面高度（軀幹背面 +9，抬高 0.02 防閃爍）
+    const POCKET_OFFSET_X = 0.468;        // 口袋位置（原 0.52 * 0.9 ≈ 0.468）
+
+    // XY 平面邊界
+    const BOUND_X = 380;
+    const BOUND_Y = 320;
+    const SAFE_MARGIN = 45; // 牆壁觸發界線
+
+    // 地面向左延伸（只是把地形畫面加長，生物、地面、牆面的尺寸比例都維持不變）
+    const GROUND_EXTEND_LEFT = 760;                      // 往左再多出約一個地面的長度
+    const GROUND_MIN_X = -BOUND_X - GROUND_EXTEND_LEFT;  // -1140：新的地面左緣
+    const GROUND_MAX_X = BOUND_X;                        //  380：右緣仍與牆面銜接
+    const GROUND_CENTER_X = (GROUND_MIN_X + GROUND_MAX_X) / 2;
+    const GROUND_WIDTH = GROUND_MAX_X - GROUND_MIN_X;
+
+    // 生物漫遊邊界：左側跟著延伸到地面最左邊，右側仍是可攀爬的牆面
+    // （留 SAFE_MARGIN 的緩衝，鼻尖剛好停在最左邊的地面邊界內側，與原本右側的規則一致）
+    const ROAM_MIN_X = GROUND_MIN_X + SAFE_MARGIN; // -1095
+
+    // ---- 最左側地面上的凹下水池 ----
+    const POOL_X = -900;       // 水池中心 X（落在最左側地面）
+    const POOL_Y = 0;          // 水池中心 Y
+    const POOL_W = 320;        // 左右寬度
+    const POOL_H = 260;        // 前後寬度
+    const POOL_DEPTH = 34;     // 凹陷深度：夠深，讓身體可以完全沉進水裡游泳
+    const POOL_LINER = 8;      // 池壁厚度
+    const POOL_WATER_LEVEL = 1; // 水面距地面的深度（1 = 水面幾乎與池緣齊平）
+    const POOL_FLOOR_TOP = -3 - POOL_DEPTH; // 池底高度
+
+    // ---- 水池行為 ----
+    const POOL_BATHE_CHANCE = 0.75; // 走到水池附近時：75% 下水游泳、25% 繞開
+    const POOL_TRIGGER_DIST = 130;  // 距離水池多近時做決定
+    const POOL_RESET_DIST = 380;    // 離水池多遠才重新允許做決定
+    const POOL_LANE_MARGIN = 78;    // 繞行時身體中心與水池邊緣的距離
+
+    // ---- 下水游泳：身體完全沉進水裡、只露出抬高的頭，停 5 秒後上岸 ----
+    const POOL_ENTRY_INSET = 106;   // 進場點：身體中心要深到讓整條尾巴都離開岸邊（從水池內壁往池心縮 106）
+    const POOL_SINK_FRAMES = 70;    // 由水面慢慢沉進水裡的時間
+    const POOL_SWIM_SPEED = 0.9;    // 水中游泳速度（比陸地慢，看起來更悠閒）
+    const POOL_SOAK_FRAMES = 300;   // 游到水池正中央後停頓 5 秒 (60fps)
+    const POOL_SURFACE_FRAMES = 55; // 從水裡垂直浮回水面的時間
+    const POOL_CLIMB_SPEED = 1.4;   // 浮出水面後水平爬回岸邊的速度
+    const POOL_SWIM_SINK = 10;      // 身體中心沉到水面下的深度（整個軀幹都在水面下）
+    const POOL_SWIM_Z = -3 - POOL_WATER_LEVEL - POOL_SWIM_SINK; // 游泳時的身體高度
+    const POOL_SWIM_HEAD_UP = 30 * Math.PI / 180; // 游泳時頭部往上抬 30 度
+    const POOL_BODY_PITCH_MAX = 8 * Math.PI / 180; // 入水時前半身下潛的角度（後半身留在岸上）
+
+    // ---- 水池像素風煙霧粒子 ----
+    const SMOKE_INTERVAL_MIN = 180;    // 每次煙霧出現的最短間隔 3 秒 (60fps)
+    const SMOKE_INTERVAL_MAX = 300;    // 每次煙霧出現的最長間隔 5 秒
+    const SMOKE_BURST_MIN = 2;         // 一次同時出現 2 ~ 3 小搓
+    const SMOKE_BURST_MAX = 3;
+    const SMOKE_RISE_HEIGHT = 10;      // XY 固定，只往 +Z 上升約 10 單位
+    const SMOKE_PIXEL = 4.2;           // 像素方塊的基準尺寸
+    let poolSmokePuffs = [];           // 目前水面上的煙霧小搓
+    let poolSmokeTimer = 0;            // 距離下一次冒出煙霧的倒數影格
+
+    // 右側垂直牆面參數 (與地面右側邊緣相互連接且垂直地面)
+    const WALL_X = BOUND_X; // 380
+    const WALL_HEIGHT = 300; // 垂直牆面高度
+    const WALL_TOP_LIMIT = 240; // 牆面最頂端折返邊界 (生物鼻尖在 Z=296 恰好碰觸頂端科技藍邊界線)
+
+    // ---- 貼牆攀爬關鍵尺寸 (以軀幹中心為原點量測) ----
+    const NECK_OFFSET = 28;      // 頸部樞紐（軀幹前端）
+    const NOSE_OFFSET = 56;      // 鼻尖
+    const TAIL_TIP_OFFSET = 100; // 尾尖
+    const WALL_FLUSH_X = WALL_X - 3;                    // 377：四肢張開時剛好貼齊牆面
+    const WALL_APPROACH_X = WALL_FLUSH_X - NECK_OFFSET; // 349：頸部貼牆、身體仍平躺地面
+    const WALL_STAND_Z = TAIL_TIP_OFFSET - 3;           // 97：垂直站立時尾尖剛好落在地面
+    const WALL_LAND_Z = NOSE_OFFSET;                    // 56：頭朝下時鼻尖剛好到達地面
+    const WALL_STAND_DROP = WALL_STAND_Z - WALL_LAND_Z; // 41：頭朝下貼牆站立時，尾尖離地的高度
+    const WALL_TURN_DROP = 45;                          // 頂端調頭時同步下滑，讓尾巴完整留在牆面內
+
+    // ---- 牆頂起跳（銜接滑翔）動作參數 ----
+    const TOP_PAUSE_FRAMES = 30;      // 頭下腳上貼牆停頓 0.5 秒（60fps）
+    const LAUNCH_SPEED_SCALE = 2;     // 撐起→蹬牆→收勢 整體節奏倍率（原本 26/36/22 幀，現加快至 2 倍）
+    const LAUNCH_PUSH1_FRAMES = Math.round(26 / LAUNCH_SPEED_SCALE);  // 前肢撐牆，頭胸微微離牆，後腳與尾巴仍貼牆
+    const LAUNCH_PUSH2_FRAMES = Math.round(36 / LAUNCH_SPEED_SCALE);  // 前肢蹬牆，身體翻成水平並往 -Y 側移，尾巴後腳離牆
+    const LAUNCH_SETTLE_FRAMES = Math.round(22 / LAUNCH_SPEED_SCALE); // 收勢：尾巴最後擺正、四肢張開成滑翔姿
+    const LAUNCH_PIVOT_AWAY = 73;     // 蹬牆後尾根離牆距離（讓 100 長的尾巴剛好離開牆面）
+    const LAUNCH_COAST_AWAY = 20;     // 收勢時順著慣性再多滑出的距離，讓動作一路延續到滑翔
+    const LAUNCH_DRIFT_Y = 24;        // 蹬牆時往 -Y 的側移量
+    const LAUNCH_COAST_DRIFT_Y = 6;   // 收勢時往 -Y 的剩餘側移
+
+    // ---- 空中滑翔參數 ----
+    const GLIDE_TOTAL_FRAMES = 210;   // 滑翔總幀數（約 3.5 秒）
+    const GLIDE_TARGET_X_MIN = -270;  // 滑翔落點最遠（往場地另一側拉長距離）
+    const GLIDE_TARGET_X_MAX = -120;  // 滑翔落點最近
+
+    // 0~1 平滑進出曲線
+    function smoothstep01(t) {
+      t = constrain(t, 0, 1);
+      return t * t * (3 - 2 * t);
+    }
+
+    // 爬行軌跡點
+    let trail = [];
+
+    function setup() {
+      const container = document.getElementById('canvas-container');
+      const canvas = createCanvas(container.clientWidth, container.clientHeight, WEBGL);
+      canvas.parent('canvas-container');
+      document.oncontextmenu = () => false;
+
+      // 在 XY 平面出生 (Z 永遠固定為 0)
+      creature = new SmoothAlignCrawler(0, 0);
+
+      // 水池煙霧：第一次冒出也間隔 3~5 秒
+      poolSmokeTimer = int(random(SMOKE_INTERVAL_MIN, SMOKE_INTERVAL_MAX));
+
+      resetCameraView();
+    }
+
+    function windowResized() {
+      const container = document.getElementById('canvas-container');
+      resizeCanvas(container.clientWidth, container.clientHeight);
+    }
+
+    // 攝影機基準視角（滾輪縮放時沿視線前後移動，等同整個場景等比例縮放）
+    const CAMERA_EYE = [60, -80, 750];
+    const CAMERA_TARGET = [40, -15, 60];
+    const CAMERA_UP = [0, 1, 0];
+    const CAMERA_MIN_DIST = 200;   // 最近距離（放大極限）
+    const CAMERA_MAX_DIST = 2800;  // 最遠距離（縮小極限，可看到左側延伸後的地面）
+
+    function resetCameraView() {
+      camera(
+        CAMERA_EYE[0], CAMERA_EYE[1], CAMERA_EYE[2],
+        CAMERA_TARGET[0], CAMERA_TARGET[1], CAMERA_TARGET[2],
+        CAMERA_UP[0], CAMERA_UP[1], CAMERA_UP[2]
+      );
+    }
+
+    // 滑鼠滾輪縮放：沿目前視線把鏡頭往環繞中心推進 / 拉遠。
+    // 地面、牆面、生物與軌跡會一起等比例放大縮小（物件實際尺寸不變）。
+    function mouseWheel(event) {
+      let delta = event.deltaY || event.delta || 0;
+      if (event.deltaMode === 1) delta *= 33;        // 以「行」為單位
+      else if (event.deltaMode === 2) delta *= 300;  // 以「頁」為單位
+      zoomCamera(delta);
+      return false; // 阻止頁面捲動
+    }
+
+    function zoomCamera(deltaY) {
+      if (!deltaY || typeof _renderer === 'undefined') return;
+      const cam = _renderer._curCamera;
+      if (!cam) return;
+
+      const dx = cam.eyeX - cam.centerX;
+      const dy = cam.eyeY - cam.centerY;
+      const dz = cam.eyeZ - cam.centerZ;
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+
+      const factor = Math.exp(deltaY * 0.0015); // 每格滾輪約 16%，觸控板可細微縮放
+      const targetDist = constrain(dist * factor, CAMERA_MIN_DIST, CAMERA_MAX_DIST);
+      const k = targetDist / dist;
+
+      camera(
+        cam.centerX + dx * k, cam.centerY + dy * k, cam.centerZ + dz * k,
+        cam.centerX, cam.centerY, cam.centerZ,
+        cam.upX, cam.upY, cam.upZ
+      );
+    }
+
+    function draw() {
+      background(24, 26, 30);
+
+      setupLighting();
+
+      // 滑鼠自由旋轉檢視 3D 視角（滾輪縮放改由 mouseWheel() 自行處理，故第三個參數設 0）
+      orbitControl(1.5, 1.5, 0);
+
+      // 繪製 XY 平面底板與邊界網格
+      drawXYFloor();
+
+      // 繪製與右側邊緣相互連接的垂直牆面
+      drawRightWall();
+
+      // 繪製軌跡
+      drawTrail();
+
+      // 更新生物運動邏輯 (平滑轉向對齊目標後前進、碰壁原地轉向離開、碰右牆垂直爬牆)
+      creature.update(autoMoveEnabled);
+
+      // 繪製生物
+      creature.render();
+
+      // 水池水面（在生物之後繪製，讓沉入水中的部位透過水面若隱若現）
+      drawPoolWater();
+
+      // 泡水時補畫軀幹頂面外框（水色調、與四肢一致，畫在水面之上）
+      creature.renderSubmergedTorsoOutline();
+
+      // 水池表面往上升起的像素風煙霧粒子（畫在水面之上）
+      drawPoolSmoke();
+
+      // 更新 HUD
+      updateHUD();
+    }
+
+    function setupLighting() {
+      ambientLight(115, 120, 130);
+      directionalLight(235, 240, 245, -0.5, 0.8, 1.0);
+      directionalLight(80, 85, 95, 0.7, -0.4, 0.6);
+    }
+
+    function drawXYFloor() {
+      // 地板向左加長，左右各留 40 的邊，右側仍延伸到牆面底下
+      const floorTopZ = -3;
+      const floorThick = 10;
+      const floorY0 = -BOUND_Y - 40;
+      const floorY1 = BOUND_Y + 40;
+      const floorLeft  = GROUND_CENTER_X - (GROUND_WIDTH + 80) / 2;  // -1180
+      const floorRight = GROUND_CENTER_X + (GROUND_WIDTH + 80) / 2;  //  420
+      const px0 = POOL_X - POOL_W / 2, px1 = POOL_X + POOL_W / 2;
+      const py0 = POOL_Y - POOL_H / 2, py1 = POOL_Y + POOL_H / 2;
+      const poolBottomZ = floorTopZ - POOL_DEPTH;
+      const innerW = POOL_W - POOL_LINER * 2;
+      const innerH = POOL_H - POOL_LINER * 2;
+
+      // 1. 地板主體：水池位置挖空，拆成四塊拼起來
+      push();
+      noStroke();
+      fill(30, 33, 38);
+      const slabs = [
+        [floorLeft, px0, floorY0, floorY1],  // 水池左側
+        [px1, floorRight, floorY0, floorY1], // 水池右側
+        [px0, px1, floorY0, py0],            // 水池前側
+        [px0, px1, py1, floorY1]             // 水池後側
+      ];
+      for (let s of slabs) {
+        push();
+        translate((s[0] + s[1]) / 2, (s[2] + s[3]) / 2, floorTopZ - floorThick / 2);
+        box(s[1] - s[0], s[3] - s[2], floorThick);
+        pop();
+      }
+      // 四塊拼板的接縫不畫線（避免水池邊界多出兩條平行 X 軸的直線），
+      // 只補回整塊地板原本的外框
+      noFill();
+      stroke(44, 48, 56);
+      strokeWeight(1.2);
+      translate(GROUND_CENTER_X, 0, floorTopZ - floorThick / 2);
+      box(GROUND_WIDTH + 80, floorY1 - floorY0, floorThick);
+      pop();
+
+      // 2. 水池內壁 + 池底（從地面向下凹陷）
+      push();
+      noStroke();
+      fill(23, 27, 34);
+      // 前後內壁
+      push(); translate(POOL_X, py0 + POOL_LINER / 2, (floorTopZ + poolBottomZ) / 2); box(POOL_W, POOL_LINER, POOL_DEPTH); pop();
+      push(); translate(POOL_X, py1 - POOL_LINER / 2, (floorTopZ + poolBottomZ) / 2); box(POOL_W, POOL_LINER, POOL_DEPTH); pop();
+      // 左右內壁
+      push(); translate(px0 + POOL_LINER / 2, POOL_Y, (floorTopZ + poolBottomZ) / 2); box(POOL_LINER, innerH, POOL_DEPTH); pop();
+      push(); translate(px1 - POOL_LINER / 2, POOL_Y, (floorTopZ + poolBottomZ) / 2); box(POOL_LINER, innerH, POOL_DEPTH); pop();
+      // 池底
+      fill(18, 22, 29);
+      push(); translate(POOL_X, POOL_Y, poolBottomZ - 1.5); box(innerW, innerH, 3); pop();
+      pop();
+
+      // 3. 網格線（跳過水池缺口，避免線條浮在凹洞上）
+      push();
+      noStroke();
+      fill(38, 42, 50);
+      const step = 80;
+
+      const addStrip = (cx, cy, w, h) => {
+        push();
+        translate(cx, cy, -2.8);
+        box(w, h, 0.6);
+        pop();
+      };
+
+      // 從最左側開始，維持與原本網格相同的相位
+      for (let x = -BOUND_X - GROUND_EXTEND_LEFT - 40; x <= BOUND_X; x += step) {
+        if (x > px0 + 1 && x < px1 - 1) {
+          // 穿過水池的線段拆成前後兩段
+          addStrip(x, (-BOUND_Y + py0) / 2, 2, py0 + BOUND_Y);
+          addStrip(x, (py1 + BOUND_Y) / 2, 2, BOUND_Y - py1);
+        } else {
+          addStrip(x, 0, 2, BOUND_Y * 2);
+        }
+      }
+      for (let y = -BOUND_Y; y <= BOUND_Y; y += step) {
+        if (y > py0 + 1 && y < py1 - 1) {
+          addStrip((GROUND_MIN_X + px0) / 2, y, px0 - GROUND_MIN_X, 2);
+          addStrip((px1 + GROUND_MAX_X) / 2, y, GROUND_MAX_X - px1, 2);
+        } else {
+          addStrip(GROUND_CENTER_X, y, GROUND_WIDTH, 2);
+        }
+      }
+
+      // 中心標記與左側兩座立體柱
+      fill(52, 58, 68);
+      push();
+      translate(0, 0, -2.7);
+      box(24, 24, 0.8);
+      pop();
+
+      const leftCorners = [
+        [GROUND_MIN_X, -BOUND_Y],
+        [GROUND_MIN_X,  BOUND_Y]
+      ];
+      for (let c of leftCorners) {
+        push();
+        translate(c[0], c[1], 10);
+        fill(45, 50, 58);
+        stroke(60, 66, 76);
+        box(16, 16, 26);
+        pop();
+      }
+      pop();
+    }
+
+    /* 水池水面：畫在生物之後，讓沉入水中的身體透過半透明水面若隱若現 */
+    function drawPoolWater() {
+      const innerW = POOL_W - POOL_LINER * 2;
+      const innerH = POOL_H - POOL_LINER * 2;
+      // 水面用無光模式上色，顏色較穩定（不會被強光打亮成一片死藍）
+      noLights();
+      push();
+      noStroke();
+      fill(56, 150, 200, 76);
+      translate(POOL_X, POOL_Y, -3 - POOL_WATER_LEVEL);
+      box(innerW, innerH, 0.6);
+      // 水面邊緣的微亮反光
+      noFill();
+      stroke(130, 205, 240, 88);
+      strokeWeight(1.2);
+      box(innerW, innerH, 0.6);
+      pop();
+      setupLighting();
+    }
+
+    /* 水池像素風煙霧粒子：
+       每 3~5 秒在水面隨機 2~3 個不同位置各冒出一小搓（由數個小方塊組成的像素團）。
+       生成後 XY 座標固定不動，只沿 +Z 上升約 10 單位，並在後半段逐漸變淡消失。 */
+    function spawnPoolSmokeBurst() {
+      const innerW = POOL_W - POOL_LINER * 2;
+      const innerH = POOL_H - POOL_LINER * 2;
+      const burstCount = int(random(SMOKE_BURST_MIN, SMOKE_BURST_MAX + 0.999));
+      const burstPositions = [];
+
+      for (let k = 0; k < burstCount; k++) {
+        // 隨機挑一個水面位置，盡量與同一次冒出的其他小搓保持距離
+        let px = POOL_X;
+        let py = POOL_Y;
+        for (let tries = 0; tries < 20; tries++) {
+          px = POOL_X + random(-innerW / 2 + 26, innerW / 2 - 26);
+          py = POOL_Y + random(-innerH / 2 + 26, innerH / 2 - 26);
+          const tooClose = burstPositions.some(p => Math.hypot(p.x - px, p.y - py) < 70);
+          if (!tooClose) break;
+        }
+        burstPositions.push({ x: px, y: py });
+
+        // 一小搓：用多層像素方塊疊成細長的煙柱，越往上越小、越淡，
+        // 並帶一點左右擺盪，讓它看起來像一縷往上飄的煙。
+        const cells = [];
+        const layers = int(random(5, 8));            // 垂直 5~7 層
+        const swayPhase = random(TWO_PI);
+        for (let layerIdx = 0; layerIdx < layers; layerIdx++) {
+          const h = layers === 1 ? 0 : layerIdx / (layers - 1); // 0 = 底部, 1 = 頂端
+          const layerZ = h * SMOKE_PIXEL * 4.6;               // 煙柱拉高（約 19 單位）
+          const sway = sin(h * 2.4 + swayPhase) * SMOKE_PIXEL * 0.7;
+          const cellsInLayer = layerIdx === 0 ? 3 : int(random(2, 4)); // 每層 2~3 個像素塊
+          for (let j = 0; j < cellsInLayer; j++) {
+            const a = random(TWO_PI);
+            const r = random(0, SMOKE_PIXEL * 0.85);
+            cells.push({
+              ox: sway + cos(a) * r,
+              oy: sin(a) * r * 0.9,
+              oz: layerZ + random(-0.5, 0.5),
+              size: SMOKE_PIXEL * lerp(1.0, 0.55, h) * random(0.85, 1.1),
+              shade: random(-16, 16),
+              h: h
+            });
+          }
+        }
+
+        poolSmokePuffs.push({
+          x: px,
+          y: py,
+          z: -3 - POOL_WATER_LEVEL + 0.8,   // 貼著水面生成
+          age: 0,
+          life: int(random(100, 140)),       // 約 1.7 ~ 2.3 秒
+          rise: SMOKE_RISE_HEIGHT * random(0.9, 1.1),
+          cells: cells
+        });
+      }
+    }
+
+    function drawPoolSmoke() {
+      // 冒煙節奏：每次間隔 3~5 秒
+      poolSmokeTimer--;
+      if (poolSmokeTimer <= 0) {
+        spawnPoolSmokeBurst();
+        poolSmokeTimer = int(random(SMOKE_INTERVAL_MIN, SMOKE_INTERVAL_MAX));
+      }
+
+      if (poolSmokePuffs.length === 0) return;
+
+      // 像素風：關閉光源，使用平塗的半透明方塊，顏色不受光線影響
+      noLights();
+      push();
+      noStroke();
+
+      for (let i = poolSmokePuffs.length - 1; i >= 0; i--) {
+        const puff = poolSmokePuffs[i];
+        puff.age++;
+        const t = constrain(puff.age / puff.life, 0, 1);
+        if (t >= 1) {
+          poolSmokePuffs.splice(i, 1);
+          continue;
+        }
+
+        // 冒出的瞬間快速淡入，等煙霧大致升到定位後再明顯變淡消失
+        const fadeIn = constrain(t / 0.10, 0, 1);
+        const fadeOut = 1 - smoothstep01(constrain((t - 0.55) / 0.45, 0, 1));
+        const alpha = 165 * fadeIn * fadeOut;
+        if (alpha < 1) continue;
+
+        // XY 固定：只往 +Z 上升約 10 單位，前 75% 的時間完成上升；
+        // 上升過程再把垂直間距逐漸拉長，讓煙柱越飄越細長。
+        const z = puff.z + puff.rise * smoothstep01(t / 0.75);
+        const plumeStretch = 1 + 0.35 * t;
+
+        for (let c of puff.cells) {
+          const cellAlpha = alpha * (1 - 0.3 * (c.h || 0)); // 頂端再淡一點，煙尾更柔和
+          if (cellAlpha < 1) continue;
+          fill(208 + c.shade, 214 + c.shade, 222 + c.shade, cellAlpha);
+          push();
+          translate(puff.x + c.ox, puff.y + c.oy, z + c.oz * plumeStretch);
+          box(c.size, c.size, c.size);
+          pop();
+        }
+      }
+
+      pop();
+      setupLighting();
+    }
+
+    /* 繪製與地面右側邊緣相互連接且垂直地面的高聳牆面 */
+    function drawRightWall() {
+      const wallThickness = 16;
+      const wallCenterZ = (-3 + (-3 + WALL_HEIGHT)) / 2; // -3 + 140 = 137
+
+      // 1. 牆體主體結構 (位於 X = 380 右側邊緣，外推 thickness / 2 使攀爬內側面剛好貼齊 X = 380)
+      push();
+      translate(WALL_X + wallThickness / 2, 0, wallCenterZ);
+      fill(26, 29, 35);
+      stroke(42, 46, 54);
+      strokeWeight(1.2);
+      box(wallThickness, BOUND_Y * 2, WALL_HEIGHT);
+      pop();
+
+      // 2. 牆面內側科技網格線 (與地面網格線無縫相連)
+      push();
+      noStroke();
+      fill(36, 40, 48);
+      // 水平橫向網格線 (沿 Z 軸每隔 40 單位一道)
+      for (let z = 20; z < WALL_HEIGHT - 20; z += 40) {
+        push();
+        translate(WALL_X - 0.3, 0, z - 3);
+        box(0.6, BOUND_Y * 2, 2);
+        pop();
+      }
+      // 垂直向網格線 (與地面 Y 軸網格完全對齊，每隔 80 單位一根)
+      const stepY = 80;
+      for (let y = -BOUND_Y + stepY; y < BOUND_Y; y += stepY) {
+        push();
+        translate(WALL_X - 0.3, y, wallCenterZ);
+        box(0.6, 2, WALL_HEIGHT);
+        pop();
+      }
+
+      // 3. 牆頂最高邊界飾條與高亮指示線 (頂端折返邊界)
+      push();
+      translate(WALL_X + wallThickness / 2, 0, WALL_HEIGHT - 3);
+      fill(45, 52, 64);
+      stroke(60, 70, 85);
+      strokeWeight(1.2);
+      box(wallThickness + 4, BOUND_Y * 2 + 10, 8);
+
+      // 頂部科技藍霓虹發光警示條 (清楚呈現「最頂端的邊界」)
+      noStroke();
+      emissiveMaterial(56, 189, 248);
+      fill(56, 189, 248);
+      translate(-wallThickness / 2 - 1, 0, 0);
+      box(2, BOUND_Y * 2, 3);
+      pop();
+
+      // 4. 右側兩根角柱加高延伸至牆頂，牢固銜接整道牆
+      const rightCorners = [
+        [BOUND_X, -BOUND_Y],
+        [BOUND_X,  BOUND_Y]
+      ];
+      for (let c of rightCorners) {
+        push();
+        translate(c[0] + 6, c[1], wallCenterZ);
+        fill(40, 45, 53);
+        stroke(55, 62, 72);
+        box(20, 20, WALL_HEIGHT + 14);
+        pop();
+      }
+      pop();
+    }
+
+    function drawTrail() {
+      push();
+      noStroke();
+      fill(70, 78, 92, 160);
+      for (let i = 0; i < trail.length; i++) {
+        let p = trail[i];
+        push();
+        if (p.z > 5) {
+          // 垂直爬牆時留在牆面上的軌跡點
+          translate(p.x, p.y, p.z);
+          box(0.8, 4, 4);
+        } else {
+          // 地面上的爬行軌跡點
+          translate(p.x, p.y, -2.5);
+          box(4, 4, 0.8);
+        }
+        pop();
+      }
+      pop();
+    }
+
+    /* ==============================================================
+       7 方塊灰色爬蟲生物類別 (平滑轉向 + 貼地掃動 + 碰壁避障 + 垂直爬牆 + 空中 T 字滑翔)
+       ============================================================== */
+    class SmoothAlignCrawler {
+      constructor(x, y) {
+        this.pos = createVector(x, y, 0); // Z 軸：地面為 0，垂直爬牆與空中滑翔時變化
+        this.heading = 0;
+        this.targetHeading = 0; // 下一步要前往的目標航向
+
+        this.speed = 0;
+        this.maxSpeed = 2.2;
+
+        this.walkCycle = 0;
+        this.isMoving = false;
+        this.isTurning = false; // 是否正在原地踏步轉身中
+        this.breathePhase = 0;
+
+        // 垂直爬牆相關屬性
+        this.climbPitch = 0; // 0 = 地面水平 (XY), HALF_PI = 垂直貼附右側牆面 (YZ)
+        this.headPitch = 0;  // 頭部繞頸部樞紐上仰角度 (0 = 與軀幹同向, HALF_PI = 抬頭與牆面平行貼齊)
+        this.tailPitch = 0;  // 尾巴繞尾根樞紐相對軀幹的仰角 (身體翻正時尾巴留在地面貼平，之後再順勢貼上牆)
+        this.limbPress = 0;  // 四肢繞自身長軸的翻轉角 (貼牆過程把掌面轉正壓平貼上牆面)
+        this.wallAngle = 0;  // 0 = 朝向 +Z 向上爬, PI = 朝向 -Z 向下爬
+        this.transitionProgress = 0;
+
+        // 牆頂起跳（牆面 -> 滑翔）相關屬性
+        this.topPauseTimer = 0;    // 牆頂頭下腳上停頓計時
+        this.launchProgress = 0;   // 起跳動作影格計數 (撐牆 -> 蹬牆 -> 收勢)
+        this.launchBaseY = 0;      // 起跳前的 Y 位置，用來計算往 -Y 的側移
+        this.launchLegPush = 0;    // 0~1：前肢往牆面撐出的程度
+        this.launchLegBlend = 0;   // 0~1：後腳由貼牆收成滑翔 T 字姿的程度
+
+        // 空中 T 字型滑翔相關屬性
+        this.forcedNextAction = null; // 可強制指定頂端動作：'GLIDE' | 'CLIMB_DOWN' | null (隨機)
+        this.glideProgress = 0;
+        this.glideTotalFrames = GLIDE_TOTAL_FRAMES;
+        this.glideStartX = 0;
+        this.glideStartY = 0;
+        this.glideStartZ = 0;
+        this.glideTargetX = 0;
+        this.glideTargetY = 0;
+        this.landTimer = 0;
+
+        this.currentMode = 'X'; // 'X' | 'Y' | 'BOTH'
+        this.currentModeName = '初始化';
+
+        // 水池游泳相關屬性
+        this.poolDecided = false;   // 這次靠近水池是否已經做過決定
+        this.poolMode = null;       // 'BATHE' | 'AVOID' | null
+        this.walkTarget = null;     // 目前要前往的路徑點 {x, y}
+        this.walkQueue = [];        // 後續路徑點
+        this.sinkAmount = 0;        // 0 = 站在池邊, 1 = 完全沉到游泳深度
+        this.sinkTimer = 0;
+        this.sinkStartZ = 0;
+        this.soakTimer = 0;
+        this.climbTimer = 0;
+        this.poolBodyPitch = 0;     // 入水時前半身下潛的角度（後半身留在岸上）
+
+        // 狀態機：
+        // 'WAITING' (停頓 1-5 秒，微幅呼吸律動)
+        // 'ALIGNING_TURN' (原地向目標轉身)
+        // 'CRAWLING' (正常直線爬行)
+        // 'WALL_TURNING' (其他邊界原地轉向)
+        // 'APPROACHING_WALL' (一邊小幅靠近牆面、一邊把頭抬起來)
+        // 'TRANSITION_TO_WALL' (頭部先貼齊牆面，身體與四肢用相同節奏轉正貼平牆面後整片沿牆上滑)
+        // 'CLIMBING_UP' (順著右側牆面垂直往上爬)
+        // 'WALL_TOP_TURN' (碰觸最頂端邊界，原地調頭 180 度並微幅下滑，尾巴不甩出牆外)
+        // 'WALL_TOP_PAUSE' (頭朝下貼牆停頓 0.5 秒蓄力)
+        // 'WALL_TOP_LAUNCH' (前肢撐牆 -> 蹬牆 -> 身體翻成水平並脫離牆面 -> 四肢張開成滑翔姿)
+        // 'CLIMBING_DOWN' (選擇一：順著牆面垂直往下爬回地面)
+        // 'TRANSITION_TO_GROUND' (頭部先彎下放平貼地，身體再以頸部貼地點為支點跟著放平，尾巴最後回到地面)
+        // 'GLIDING' (選擇二：跳入半空中，前肢張開薄膜、後腳後收呈 T 字型緩慢滑翔)
+        // 'GLIDE_LANDED' (滑翔觸地著陸，收攏四肢回到地面站立姿態)
+        // 'POOL_SINKING' (整隻身體進水後，身體慢慢沉進水裡，頭抬到 30 度)
+        // 'POOL_SWIMMING' (水平游向水池正中央)
+        // 'POOL_SOAK' (停在水池正中央 5 秒，身體輕輕上下浮動)
+        // 'POOL_RISING' (游回進場側的岸邊)
+        // 'POOL_CLIMBING_OUT' (從水面抬升回池緣高度，爬出水池)
+        this.state = 'WAITING';
+        this.waitTimer = this.getRandomWaitFrames();
+        this.moveTotalFrames = 0;
+        this.moveCurrentFrame = 0;
+      }
+
+      get isGliding() {
+        return this.state === 'GLIDING' || this.state === 'GLIDE_LANDED';
+      }
+
+      getRandomWaitFrames() {
+        return int(random(60, 300)); // 1 - 5 秒
+      }
+
+      startNewMove() {
+        // 新的移動開始前，先收掉水池與路徑點相關狀態
+        this.walkTarget = null;
+        this.walkQueue = [];
+        this.sinkAmount = 0;
+        this.headPitch = 0;
+        this.poolBodyPitch = 0;
+        this.poolMode = null;
+
+        this.moveTotalFrames = int(random(130, 230));
+        this.moveCurrentFrame = 0;
+
+        let modeRoll = random();
+        let nearRight  = this.pos.x > BOUND_X - SAFE_MARGIN - 25;
+        let nearLeft   = this.pos.x < ROAM_MIN_X + 25;
+        let nearBottom = this.pos.y > BOUND_Y - SAFE_MARGIN - 25;
+        let nearTop    = this.pos.y < -BOUND_Y + SAFE_MARGIN + 25;
+
+        // 計算下一輪目標朝向角 targetHeading
+        if (modeRoll < 0.33) {
+          // 【模式 1：僅 X 軸位移】
+          this.currentMode = 'X';
+          this.currentModeName = '僅 X 軸位移 (Y 軸固定)';
+          if (nearRight) this.targetHeading = PI;
+          else if (nearLeft) this.targetHeading = 0;
+          else this.targetHeading = random() < 0.5 ? 0 : PI;
+        } else if (modeRoll < 0.66) {
+          // 【模式 2：僅 Y 軸位移】
+          this.currentMode = 'Y';
+          this.currentModeName = '僅 Y 軸位移 (X 軸固定)';
+          if (nearBottom) this.targetHeading = -HALF_PI;
+          else if (nearTop) this.targetHeading = HALF_PI;
+          else this.targetHeading = random() < 0.5 ? HALF_PI : -HALF_PI;
+        } else {
+          // 【模式 3：X 與 Y 軸同時變動】
+          this.currentMode = 'BOTH';
+          this.currentModeName = 'X 與 Y 軸同時變動 (斜向漫遊)';
+          if (nearRight || nearLeft || nearBottom || nearTop) {
+            let toCenter = atan2(-this.pos.y, -this.pos.x);
+            this.targetHeading = toCenter + random(-0.5, 0.5);
+          } else {
+            this.targetHeading = random(TWO_PI);
+          }
+        }
+
+        /* ==============================================================
+           🔥 關鍵：目標座標方向改變時先在原地平滑旋轉對齊目標方向，再出發！
+           ============================================================== */
+        let diff = this.targetHeading - this.heading;
+        while (diff < -PI) diff += TWO_PI;
+        while (diff > PI) diff -= TWO_PI;
+
+        if (abs(diff) > 0.06) {
+          this.state = 'ALIGNING_TURN';
+          this.isMoving = true;
+          this.isTurning = true;
+          this.speed = 0;
+        } else {
+          this.state = 'CRAWLING';
+          this.isMoving = true;
+          this.isTurning = false;
+        }
+      }
+
+      // 地面高度：進去最左側的水池範圍內，地面會下沉到池底（邊緣為短緩坡，走起來平順）
+      groundHeightAt(x, y) {
+        const inset = POOL_LINER;
+        const dx = Math.min(x - (POOL_X - POOL_W / 2 + inset), (POOL_X + POOL_W / 2 - inset) - x);
+        const dy = Math.min(y - (POOL_Y - POOL_H / 2 + inset), (POOL_Y + POOL_H / 2 - inset) - y);
+        const d = Math.min(dx, dy);
+        if (d <= 0) return 0;
+        return -POOL_DEPTH * Math.min(1, d / 50);
+      }
+
+      // 到水池矩形邊界的距離（在池內為 0）
+      poolDistance() {
+        const dx = Math.max(0, Math.abs(this.pos.x - POOL_X) - POOL_W / 2);
+        const dy = Math.max(0, Math.abs(this.pos.y - POOL_Y) - POOL_H / 2);
+        return Math.hypot(dx, dy);
+      }
+
+      // 把身體航向平滑轉向指定角度（水中轉身划水用）
+      turnToward(targetAngle, step) {
+        let dh = targetAngle - this.heading;
+        while (dh > PI) dh -= TWO_PI;
+        while (dh < -PI) dh += TWO_PI;
+        this.heading += constrain(dh, -step, step);
+      }
+
+      // 走到水池附近時的隨機決定：一半機率繞開、一半機率下去游泳
+      updatePoolDecision() {
+        const d = this.poolDistance();
+        if (this.poolDecided) {
+          if (d > POOL_RESET_DIST) {
+            this.poolDecided = false;
+            this.poolMode = null;
+          }
+          return;
+        }
+        if (d > POOL_TRIGGER_DIST) return;
+        // 已經在水池範圍內（例如剛游完泳正要爬出來）就不重新判定，避免原地無限下水
+        if (d <= 0.5) return;
+
+        // 只要不是「正背對著水池走開」，靠近到觸發距離就做決定
+        // （原本要求 toward > 0.2，導致沿著池邊平行走過去時完全不判定、被硬性繞開，
+        //   看起來就像「永遠不會進水池」）
+        const dx = POOL_X - this.pos.x;
+        const dy = POOL_Y - this.pos.y;
+        const len = Math.hypot(dx, dy) || 1;
+        const toward = (dx / len) * cos(this.heading) + (dy / len) * sin(this.heading);
+        if (toward < -0.35) return;
+
+        this.poolDecided = true;
+        if (random() < POOL_BATHE_CHANCE) {
+          this.startPoolApproach();
+        } else {
+          this.startPoolDetour();
+        }
+      }
+
+      // 決定下水：先走進水池、讓整隻身體都到水面上，再慢慢沉進水裡
+      startPoolApproach() {
+        this.poolMode = 'BATHE';
+        this.poolDecided = true;   // 已經決定要下水了，路途中不要再被隨機判定改掉
+        this.walkQueue = [];
+        this.walkTarget = {
+          x: POOL_X + POOL_W / 2 - POOL_LINER - POOL_ENTRY_INSET,
+          y: POOL_Y
+        };
+        this.headPitch = 0;
+        this.state = 'CRAWLING';
+        this.isMoving = true;
+        this.isTurning = false;
+        this.moveCurrentFrame = 0;
+        this.moveTotalFrames = 260;
+        this.currentModeName = '決定下水：慢慢走進水池 🏊';
+      }
+
+      // 決定繞開：沿著水池外側繞過去，完全不碰到水池
+      startPoolDetour() {
+        this.poolMode = 'AVOID';
+        this.poolDecided = true;   // 這次靠近已處理（隨機繞開或被動避開都算），走完再重新開放判定
+        const up = (this.pos.y >= POOL_Y) ? 1 : -1; // 從上方或下方繞
+        const laneY = POOL_Y + up * (POOL_H / 2 + POOL_LANE_MARGIN);
+        const cornerX = POOL_X + POOL_W / 2 + 90;    // 水池靠場中央那側的轉角外緣
+
+        const q = [];
+        // 先退到水池外側的走道（同一個 X 先橫向讓開，保證不會切過水池）
+        if (Math.abs(this.pos.y - laneY) > 14) q.push({ x: this.pos.x, y: laneY });
+        // 貼著走道走到水池轉角外側
+        q.push({ x: Math.max(cornerX, this.pos.x), y: laneY });
+        // 沿著池邊繞一個弧、回到空曠處
+        q.push({
+          x: POOL_X + POOL_W / 2 + 300,
+          y: POOL_Y + (laneY - POOL_Y) * 0.5
+        });
+
+        this.walkQueue = q;
+        this.walkTarget = this.walkQueue.shift();
+        this.state = 'CRAWLING';
+        this.isMoving = true;
+        this.isTurning = false;
+        this.moveCurrentFrame = 0;
+        this.moveTotalFrames = 300;
+        this.currentModeName = '決定繞開水池，沿著池邊走過去 🚶';
+      }
+
+      // 到達目前路徑點：換下一個，或結束這段路徑
+      advanceWalkPath() {
+        if (this.walkQueue.length > 0) {
+          this.walkTarget = this.walkQueue.shift();
+          return;
+        }
+        this.walkTarget = null;
+        if (this.poolMode === 'BATHE') {
+          this.startPoolSink();
+          return;
+        }
+        this.poolMode = null;
+        this.poolDecided = false;   // 繞完了，下次再靠近可以重新擲骰子（避免一直被動繞開、永遠不進水池）
+        this.state = 'WAITING';
+        this.speed = 0;
+        this.isMoving = false;
+        this.isTurning = false;
+        this.waitTimer = int(random(50, 130));
+        this.currentModeName = '已經繞過水池';
+      }
+
+      // 整隻身體都已進入水面：從水面上慢慢往下沉進水裡（頭同時抬起來）
+      startPoolSink() {
+        this.pos.x = POOL_X + POOL_W / 2 - POOL_LINER - POOL_ENTRY_INSET;
+        this.pos.y = POOL_Y;
+        this.pos.z = 0;   // 進場時先貼著水面，不隨池底下降
+        this.state = 'POOL_SINKING';
+        this.sinkTimer = 0;
+        this.sinkAmount = 0;
+        this.sinkStartZ = this.pos.z;
+        this.soakTimer = 0;
+        this.climbTimer = 0;
+        this.speed = 0;
+        this.isMoving = false;
+        this.isTurning = false;
+        this.walkTarget = null;
+        this.walkQueue = [];
+        this.currentModeName = '身體進入水面，慢慢沉進水裡 🏊';
+      }
+
+      // 游回岸邊、爬出水池後，繼續在地面漫遊
+      startPoolExit() {
+        this.poolMode = null;
+        this.poolDecided = true; // 剛游完，先不要再判定，等走遠再重新決定
+        this.sinkAmount = 0;
+        this.headPitch = 0;
+        this.tailPitch = 0;
+        this.poolBodyPitch = 0;
+        this.state = 'CRAWLING';
+        this.isMoving = true;
+        this.isTurning = false;
+        this.speed = this.maxSpeed;
+        this.moveCurrentFrame = 0;
+        this.moveTotalFrames = 220;
+        this.walkQueue = [];
+        this.walkTarget = {
+          x: POOL_X + POOL_W / 2 + 120,
+          y: constrain(this.pos.y, POOL_Y - 90, POOL_Y + 90)
+        };
+        this.currentModeName = '游完泳，爬出水池繼續漫遊 💧';
+      }
+
+      // 立即下水：中斷目前所有動作，直接站到水池右外側、面向水池走進去游泳
+      goBathNow() {
+        // 收掉爬牆 / 滑翔 / 起跳 / 路徑等所有進行中的動作
+        this.climbPitch = 0;
+        this.headPitch = 0;
+        this.tailPitch = 0;
+        this.limbPress = 0;
+        this.wallAngle = 0;
+        this.transitionProgress = 0;
+        this.launchProgress = 0;
+        this.launchLegPush = 0;
+        this.launchLegBlend = 0;
+        this.glideProgress = 0;
+        this.landTimer = 0;
+        this.forcedNextAction = null;
+        this.sinkAmount = 0;
+        this.sinkTimer = 0;
+        this.climbTimer = 0;
+        this.soakTimer = 0;
+        this.poolBodyPitch = 0;
+        this.walkQueue = [];
+
+        // 站到水池右側外緣、面向池心（鼻尖仍在池外，會自己慢慢走進去）
+        this.poolDecided = true;
+        this.pos.set(POOL_X + POOL_W / 2 + 150, POOL_Y, 0);
+        this.pos.z = this.groundHeightAt(this.pos.x, this.pos.y);
+        this.heading = PI;
+        this.targetHeading = PI;
+        this.speed = 0;
+        trail.length = 0;
+
+        this.startPoolApproach();
+        this.currentModeName = '立即下水：走向水池 🏊';
+      }
+
+      // 碰壁時原地向左或向右轉向
+      triggerWallPivot(wallSide) {
+        this.state = 'WALL_TURNING';
+        this.isTurning = true;
+        this.speed = 0;
+
+        let turnLeftOrRight = random() < 0.5 ? -1 : 1;
+
+        if (wallSide === 'RIGHT') {
+          this.targetHeading = PI + turnLeftOrRight * random(0.3, 1.1);
+        } else if (wallSide === 'LEFT') {
+          this.targetHeading = 0 + turnLeftOrRight * random(0.3, 1.1);
+        } else if (wallSide === 'BOTTOM') {
+          this.targetHeading = -HALF_PI + turnLeftOrRight * random(0.3, 1.1);
+        } else if (wallSide === 'TOP') {
+          this.targetHeading = HALF_PI + turnLeftOrRight * random(0.3, 1.1);
+        }
+      }
+
+      // 啟動前往右側垂直牆面爬牆程序
+      startClimbWall() {
+        if (this.climbPitch > 0 || this.state === 'APPROACHING_WALL' || this.state === 'CLIMBING_UP' || this.state === 'WALL_TOP_TURN' || this.state === 'CLIMBING_DOWN' || this.state === 'TRANSITION_TO_WALL' || this.state === 'TRANSITION_TO_GROUND' || this.isGliding) return;
+        // 中斷水池游泳 / 路徑點狀態
+        this.sinkAmount = 0;
+        this.soakTimer = 0;
+        this.climbTimer = 0;
+        this.poolBodyPitch = 0;
+        this.walkTarget = null;
+        this.walkQueue = [];
+        this.poolMode = null;
+        // 限制 Y 在安全區間 (避開兩端角落立柱)
+        this.pos.y = constrain(this.pos.y, -BOUND_Y + SAFE_MARGIN + 30, BOUND_Y - SAFE_MARGIN - 30);
+        this.heading = 0;
+        this.targetHeading = 0;
+        this.headPitch = 0;
+        this.tailPitch = 0;
+        this.limbPress = 0;
+        this.climbPitch = 0;
+        this.state = 'APPROACHING_WALL';
+        this.isMoving = true;
+        this.isTurning = false;
+        this.speed = this.maxSpeed;
+        this.currentModeName = '前往右側垂直牆面爬牆';
+      }
+
+      // 立即觸發空中 T 字型滑翔跳躍
+      triggerInstantGlide() {
+        // 直接切到「蹬牆完成、身體水平、四肢張開」的滑翔起點
+        // （尾巴已完全離開牆面，不會再出現貼牆瞬間翻平的段差）
+        this.pos.x = WALL_FLUSH_X - NECK_OFFSET - LAUNCH_PIVOT_AWAY - LAUNCH_COAST_AWAY;
+        this.pos.z = WALL_TOP_LIMIT - WALL_TURN_DROP + NECK_OFFSET;
+        this.pos.y = constrain(this.pos.y, -BOUND_Y + SAFE_MARGIN + 30, BOUND_Y - SAFE_MARGIN - 30);
+        this.climbPitch = 0;
+        this.headPitch = 0;
+        this.tailPitch = 0;
+        this.limbPress = 0;
+        this.wallAngle = PI;
+        this.launchLegPush = 0;
+        this.launchLegBlend = 0;
+        this.startGlideLeap();
+      }
+
+      // 起跳進入空中 T 字型薄膜滑翔狀態
+      startGlideLeap() {
+        this.state = 'GLIDING';
+        this.isMoving = true;
+        this.isTurning = false;
+        this.speed = 0;
+        this.headPitch = 0;
+        this.tailPitch = 0;
+        this.limbPress = 0;
+        this.glideProgress = 0;
+        this.glideTotalFrames = GLIDE_TOTAL_FRAMES;
+        this.glideStartX = this.pos.x;
+        this.glideStartZ = this.pos.z;
+        this.glideStartY = this.pos.y;
+        this.glideTargetX = random(GLIDE_TARGET_X_MIN, GLIDE_TARGET_X_MAX); // 滑翔距離拉長，落向場地另一側
+        this.glideTargetY = constrain(this.pos.y + random(-50, 50), -BOUND_Y + SAFE_MARGIN + 30, BOUND_Y - SAFE_MARGIN - 30);
+        this.currentModeName = '空中 T 字型薄膜緩慢滑翔 🪂';
+      }
+
+      update(enabled) {
+        if (!enabled) {
+          this.speed = 0;
+          this.isMoving = false;
+          this.isTurning = false;
+          return;
+        }
+
+        // 地面狀態：z 跟著地形起伏。
+        // 但「下水」時先貼著水面走進水池（z = 0），不跟著池底的虛擬斜坡下沉，
+        // 否則還留在岸上的那半身體會先陷進陸地裡。
+        if (this.state === 'CRAWLING' || this.state === 'WAITING' ||
+            this.state === 'ALIGNING_TURN' || this.state === 'WALL_TURNING') {
+          this.pos.z = (this.poolMode === 'BATHE')
+            ? 0
+            : this.groundHeightAt(this.pos.x, this.pos.y);
+        }
+
+        // 入水時的身體前傾：只有前半身已進入水池、後半身還在岸上時才作用。
+        // 以臀部（local x = -28）為支點把前半身往下轉，尾巴與後腳不跟著轉，
+        // 所以「還在岸上的那一半」會留在原地，不會陷進陸地。
+        let wantPoolPitch = 0;
+        if (this.poolMode === 'BATHE' &&
+            (this.state === 'CRAWLING' || this.state === 'POOL_SINKING')) {
+          const hipX = this.pos.x + Math.cos(this.heading) * (-28);
+          const hipY = this.pos.y + Math.sin(this.heading) * (-28);
+          const insideWaterY = Math.abs(hipY - POOL_Y) < (POOL_H / 2 - POOL_LINER);
+          const penetration = (POOL_X + POOL_W / 2 - POOL_LINER) - hipX;
+          if (insideWaterY && penetration > 0) {
+            wantPoolPitch = POOL_BODY_PITCH_MAX * smoothstep01(penetration / 30);
+          }
+        }
+        if (this.state === 'POOL_SINKING') {
+          // 沉進水裡的同時把身體慢慢放平
+          wantPoolPitch *= (1 - smoothstep01(this.sinkTimer / 35));
+        }
+        this.poolBodyPitch += (wantPoolPitch - this.poolBodyPitch) * 0.15;
+
+        /* ==============================================================
+           水池游泳：整隻身體沉進水裡 → 頭抬 30 度游到水池正中央
+                      → 停頓 5 秒 → 浮回水面爬上岸
+           ============================================================== */
+        if (this.state === 'POOL_SINKING' || this.state === 'POOL_SWIMMING' ||
+            this.state === 'POOL_SOAK' || this.state === 'POOL_RISING' ||
+            this.state === 'POOL_CLIMBING_OUT') {
+          this.isTurning = false;
+          this.breathePhase += 0.022;
+
+          if (this.state === 'POOL_SINKING') {
+            // 身體保持水平，慢慢往下沉；頭同時往上抬到 30 度
+            this.isMoving = true;
+            this.speed = POOL_SWIM_SPEED * 0.5;
+            this.sinkTimer++;
+            this.sinkAmount = smoothstep01(this.sinkTimer / POOL_SINK_FRAMES);
+            this.pos.z = lerp(this.sinkStartZ, POOL_SWIM_Z, this.sinkAmount);
+            this.headPitch = POOL_SWIM_HEAD_UP * smoothstep01((this.sinkTimer - 8) / (POOL_SINK_FRAMES - 8));
+            this.turnToward(PI, 0.05);   // 轉身面向池心
+            this.walkCycle += 0.06;
+            if (this.sinkTimer >= POOL_SINK_FRAMES) {
+              this.sinkAmount = 1;
+              this.pos.z = POOL_SWIM_Z;
+              this.state = 'POOL_SWIMMING';
+              this.currentModeName = '沉在水裡游向水池正中央 🐊';
+            }
+          } else if (this.state === 'POOL_SWIMMING') {
+            // 水平游向水池正中央，頭保持抬起約 30 度
+            this.isMoving = true;
+            this.speed = POOL_SWIM_SPEED;
+            this.sinkAmount = 1;
+            const dx = POOL_X - this.pos.x;
+            const dy = POOL_Y - this.pos.y;
+            const d = Math.hypot(dx, dy);
+            this.turnToward(Math.atan2(dy, dx), 0.05);
+            this.headPitch = POOL_SWIM_HEAD_UP + sin(this.breathePhase * 0.7) * 0.02;
+            if (d > 1.5) {
+              const step = Math.min(d, POOL_SWIM_SPEED);
+              this.pos.x += (dx / d) * step;
+              this.pos.y += (dy / d) * step;
+            }
+            this.pos.z = POOL_SWIM_Z + sin(this.breathePhase * 1.3) * 0.45;
+            this.walkCycle += 0.09;   // 四肢划水
+            if (d <= 1.5) {
+              this.pos.x = POOL_X;
+              this.pos.y = POOL_Y;
+              this.state = 'POOL_SOAK';
+              this.soakTimer = 0;
+              this.currentModeName = '沉在水池正中央休息 5 秒 🐊';
+            }
+          } else if (this.state === 'POOL_SOAK') {
+            // 停在池心 5 秒：身體輕輕上下浮動，頭仍抬著 30 度
+            this.isMoving = false;
+            this.speed = 0;
+            this.sinkAmount = 1;
+            this.soakTimer++;
+            this.pos.x = POOL_X;
+            this.pos.y = POOL_Y;
+            this.pos.z = POOL_SWIM_Z + sin(this.breathePhase * 1.2) * 0.7;
+            this.headPitch = POOL_SWIM_HEAD_UP + sin(this.breathePhase * 0.8) * 0.025;
+            if (this.soakTimer >= POOL_SOAK_FRAMES) {
+              this.state = 'POOL_RISING';
+              this.sinkTimer = 0;
+              this.climbTimer = 0;
+              this.currentModeName = '休息完畢，游回岸邊準備上岸 💧';
+            }
+          } else if (this.state === 'POOL_RISING') {
+            // 先游回進場側池邊
+            this.isMoving = true;
+            this.speed = POOL_SWIM_SPEED * 1.1;
+            const ex = POOL_X + POOL_W / 2 - POOL_LINER - POOL_ENTRY_INSET;
+            const dx = ex - this.pos.x;
+            const dy = POOL_Y - this.pos.y;
+            const d = Math.hypot(dx, dy);
+            this.turnToward(Math.atan2(dy, dx), 0.05);
+            this.headPitch = Math.max(0, this.headPitch - 0.015);
+            this.pos.z = POOL_SWIM_Z + sin(this.breathePhase * 1.3) * 0.4;
+            this.walkCycle += 0.10;
+            if (d > 2) {
+              const step = Math.min(d, this.speed);
+              this.pos.x += (dx / d) * step;
+              this.pos.y += (dy / d) * step;
+            } else {
+              this.pos.x = ex;
+              this.pos.y = POOL_Y;
+              this.state = 'POOL_CLIMBING_OUT';
+              this.climbTimer = 0;
+              this.currentModeName = '回到岸邊，抬起身體爬出水池 💧';
+            }
+          } else {
+            // POOL_CLIMBING_OUT：先在原地垂直浮回水面，再水平爬回岸邊。
+            // 水平移動時 z 固定在 0，這樣尾巴還在水裡、身體已回到岸上時都不會陷進地面。
+            this.isMoving = true;
+            this.speed = POOL_SWIM_SPEED * 0.8;
+            this.climbTimer++;
+            this.headPitch = Math.max(0, this.headPitch - 0.03);
+            const riseT = constrain(this.climbTimer / POOL_SURFACE_FRAMES, 0, 1);
+            this.pos.z = lerp(POOL_SWIM_Z, 0, smoothstep01(riseT));
+            if (riseT >= 1) {
+              this.pos.z = 0;
+              const exitX = POOL_X + POOL_W / 2 + 55;
+              const dx = exitX - this.pos.x;
+              if (Math.abs(dx) > POOL_CLIMB_SPEED) {
+                this.pos.x += Math.sign(dx) * POOL_CLIMB_SPEED;
+              } else {
+                this.pos.x = exitX;
+                this.startPoolExit();
+                return;
+              }
+            }
+            this.turnToward(0, 0.05);
+            this.walkCycle += 0.08;
+          }
+          return;
+        }
+
+        if (this.state === 'APPROACHING_WALL') {
+          // 貼牆前奏：一邊小幅靠近牆面，一邊慢慢把頭抬起來，
+          // 直到頭部與牆面完全平行貼齊（此時身體仍平貼在地面）。
+          this.isMoving = true;
+          this.isTurning = false;
+          this.heading = 0;
+          this.climbPitch = 0;
+          this.pos.z = 0;
+
+          let dist = Math.max(0, WALL_APPROACH_X - this.pos.x);
+          // 距離牆面 60 單位內開始抬頭，越靠近抬得越高
+          this.headPitch = HALF_PI * smoothstep01(1 - dist / 60);
+
+          // 越接近牆面越放慢，呈現「小幅靠近」的細膩感
+          this.speed = this.maxSpeed * lerp(0.28, 0.9, constrain(dist / 60, 0, 1));
+          this.pos.x = Math.min(this.pos.x + this.speed, WALL_APPROACH_X);
+          this.walkCycle += this.speed * 0.055;
+
+          if (WALL_APPROACH_X - this.pos.x < 0.4) {
+            this.pos.x = WALL_APPROACH_X;
+            this.headPitch = HALF_PI;
+            this.state = 'TRANSITION_TO_WALL';
+            this.transitionProgress = 0;
+          }
+        } else if (this.state === 'TRANSITION_TO_WALL') {
+          // 上牆兩階段，身體跟四肢都用與「頭部貼牆」相同的節奏貼上去：
+          // 第一階段：頸部樞紐貼著牆面，身體以尾根為支點翻正，直到軀幹與牆面完全平行
+          //            (尾巴留在地面貼平，四肢同步把掌面轉正壓向牆面)
+          // 第二階段：軀幹已貼平牆面後，整片沿著牆面往上滑動，尾巴才順勢抬起貼上牆
+          this.isMoving = true;
+          this.isTurning = false;
+          this.heading = 0;
+          this.speed = this.maxSpeed * 0.8;
+          this.walkCycle += 0.1;
+          this.transitionProgress += 0.022; // 約 45 幀完成整段上牆
+
+          // 連續不中斷的進度曲線：起步就有速度，翻正結束後直接接著沿牆上滑，
+          // 兩個階段不再各自緩起緩停，頭部貼齊牆面後身體立刻跟上。
+          let p = constrain(this.transitionProgress, 0, 1);
+          let t = p * (0.7 + 0.3 * p);
+
+          // ---- 第一階段 (0 ~ 0.5)：身體由水平翻正成與牆面平行 ----
+          let bodyT = constrain(t / 0.5, 0, 1);
+          this.climbPitch = bodyT * HALF_PI;
+          // 身體仰起多少，頭部就相對回正多少 → 頭部世界朝向始終垂直貼牆
+          this.headPitch = HALF_PI - this.climbPitch;
+          this.pos.x = WALL_FLUSH_X - NECK_OFFSET * cos(this.climbPitch);
+
+          // ---- 第二階段 (0.5 ~ 1)：身體貼平牆面後沿牆往上滑 ----
+          // 尾段保留 0.7 的速度，銜接後面的 CLIMBING_UP 時速度接近、不會停頓
+          let u = constrain((t - 0.5) / 0.5, 0, 1);
+          let slideT = 0.7 * u + 0.3 * smoothstep01(u);
+          this.pos.z = NECK_OFFSET * sin(this.climbPitch)
+                     + (WALL_STAND_Z - NECK_OFFSET) * slideT;
+
+          // 尾巴：翻正期間先留在原地貼著地面 (尾尖全程不穿地)，之後才順勢抬起貼上牆
+          let tailFlat = asin(constrain(
+            (this.pos.z - NECK_OFFSET * sin(this.climbPitch) + 3) /
+            (TAIL_TIP_OFFSET - NECK_OFFSET), 0, 1));
+          this.tailPitch = Math.max(0, this.climbPitch - tailFlat);
+
+          // 四肢：靠牆過程逐漸把掌面轉正壓平貼上牆面
+          this.limbPress = (this.climbPitch - HALF_PI) * sin(this.climbPitch);
+
+          if (t >= 1) {
+            this.climbPitch = HALF_PI;
+            this.headPitch = 0;
+            this.tailPitch = 0;
+            this.limbPress = 0;
+            this.wallAngle = 0;
+            this.pos.x = WALL_FLUSH_X;
+            this.pos.z = WALL_STAND_Z;
+            this.state = 'CLIMBING_UP';
+          }
+        } else if (this.state === 'CLIMBING_UP') {
+          // 順著右側牆面垂直往上爬
+          this.isMoving = true;
+          this.isTurning = false;
+          this.speed = this.maxSpeed;
+          this.pos.z += this.speed;
+          this.walkCycle += this.speed * 0.055;
+
+          if (frameCount % 6 === 0) {
+            trail.push(createVector(this.pos.x - 2, this.pos.y, this.pos.z));
+            if (trail.length > 80) trail.shift();
+          }
+
+          // 檢測是否到達最頂端邊界
+          if (this.pos.z >= WALL_TOP_LIMIT) {
+            this.pos.z = WALL_TOP_LIMIT;
+            this.state = 'WALL_TOP_TURN';
+            this.speed = 0;
+            this.isTurning = true;
+          }
+        } else if (this.state === 'WALL_TOP_TURN') {
+          // 碰觸最頂端邊界：在牆面上轉頭調頭 180 度，轉向面向地板！
+          this.isMoving = true;
+          this.isTurning = true;
+          this.speed = 0;
+          this.walkCycle += 0.12; // 手腳在牆面原地踏步轉身
+          this.wallAngle += 0.055; // 順暢旋轉 180 度
+          if (this.wallAngle > PI) this.wallAngle = PI;
+
+          // 調頭時同步微幅下滑，讓 180 度轉身後尾巴仍完整留在牆面內
+          this.pos.z = WALL_TOP_LIMIT - WALL_TURN_DROP * (1 - cos(this.wallAngle)) / 2;
+
+          if (this.wallAngle >= PI) {
+            this.wallAngle = PI;
+            this.pos.z = WALL_TOP_LIMIT - WALL_TURN_DROP;
+            this.isTurning = false;
+
+            // 🔥 關鍵功能：轉向面向地板後，此時生物有兩種選擇：
+            // 一是直接順著牆面往下爬，二則是跳到半空中張開薄膜、後腳往後收成 T 字型在空中緩慢滑翔後再落地！
+            let chooseGlide = false;
+            if (this.forcedNextAction === 'GLIDE') {
+              chooseGlide = true;
+              this.forcedNextAction = null;
+            } else if (this.forcedNextAction === 'CLIMB_DOWN') {
+              chooseGlide = false;
+              this.forcedNextAction = null;
+            } else {
+              // 兩種選擇隨機二選一 (各 50% 機率)
+              chooseGlide = (random() < 0.5);
+            }
+
+            if (chooseGlide) {
+              // 選擇二：先以頭下腳上的姿勢停在牆頂蓄力 0.5 秒，
+              // 之後才撐牆、蹬牆、翻成水平並張開四肢滑翔（不再瞬間跳換姿勢）
+              this.state = 'WALL_TOP_PAUSE';
+              this.topPauseTimer = TOP_PAUSE_FRAMES;
+              this.isMoving = false;
+              this.isTurning = false;
+              this.speed = 0;
+              this.climbPitch = HALF_PI;
+              this.headPitch = 0;
+              this.tailPitch = 0;
+              this.limbPress = 0;
+              this.pos.x = WALL_FLUSH_X;
+              this.pos.z = WALL_TOP_LIMIT - WALL_TURN_DROP;
+              this.launchBaseY = this.pos.y;
+              this.launchProgress = 0;
+              this.launchLegPush = 0;
+              this.launchLegBlend = 0;
+              this.currentModeName = '牆頂蓄力：頭朝下貼牆（停頓 0.5 秒）';
+            } else {
+              // 選擇一：直接順著牆面垂直往下爬回地面！
+              this.state = 'CLIMBING_DOWN';
+              this.speed = this.maxSpeed;
+              this.currentModeName = '選擇一：順著牆面垂直往下爬';
+            }
+          }
+        } else if (this.state === 'WALL_TOP_PAUSE') {
+          // 頭下腳上貼在牆頂，完全靜止蓄力 0.5 秒
+          this.isMoving = false;
+          this.isTurning = false;
+          this.speed = 0;
+          this.climbPitch = HALF_PI;
+          this.wallAngle = PI;
+          this.headPitch = 0;
+          this.tailPitch = 0;
+          this.limbPress = 0;
+          this.pos.x = WALL_FLUSH_X;
+          this.pos.z = WALL_TOP_LIMIT - WALL_TURN_DROP;
+          this.pos.y = this.launchBaseY;
+          this.topPauseTimer--;
+          if (this.topPauseTimer <= 0) {
+            this.state = 'WALL_TOP_LAUNCH';
+            this.launchProgress = 0;
+            this.launchLegPush = 0;
+            this.launchLegBlend = 0;
+            this.currentModeName = '前肢撐牆：頭胸微微離開牆面';
+          }
+        } else if (this.state === 'WALL_TOP_LAUNCH') {
+          // 牆頂起跳三段動作：
+          //  ① 前肢往牆面撐起 -> 頭胸微微往前伸離牆，後腳與尾巴仍貼牆
+          //  ② 前肢再往後蹬牆 -> 頭與身體翻成與地面平行，往 -Y 側移直到尾巴與後腳離牆
+          //  ③ 收勢 -> 尾巴最後擺正，四肢張開成滑翔 T 字姿
+          this.isMoving = true;
+          this.isTurning = false;
+          this.speed = 0;
+          this.launchProgress++;
+
+          let f = this.launchProgress;
+          const F1 = LAUNCH_PUSH1_FRAMES;
+          const F2 = LAUNCH_PUSH2_FRAMES;
+          const F3 = LAUNCH_SETTLE_FRAMES;
+          let theta, away, driftY, push, blend, tailBend;
+          const PUSH_FRAMES = F1 + F2;
+          const S1 = F1 / PUSH_FRAMES; // 撐牆段結束、開始蹬牆外滑的時間點
+
+          if (f <= PUSH_FRAMES) {
+            // ①+②：旋轉與外移共用同一條連續進度曲線，兩個動作之間不會停頓。
+            //    前 26 幀只有身體翹起（後腳與尾巴仍貼牆），之後才蹬牆往外滑。
+            let s = f / PUSH_FRAMES;
+            // 旋轉：起步緩、中段持續加速，兩次撐/蹬之間沒有停頓
+            let rot1 = smoothstep01(constrain(s / 0.55, 0, 1));
+            let u2 = constrain((s - 0.30) / 0.70, 0, 1);
+            let rot2 = 0.3 * u2 + 0.7 * smoothstep01(u2);
+            theta = HALF_PI * (0.38 * rot1 + 0.62 * rot2);
+
+            // 外移：撐牆段完全不動，蹬牆段才以尾根為支點離開牆面
+            let ud = constrain((s - S1) / (1 - S1), 0, 1);
+            away = LAUNCH_PIVOT_AWAY * (0.3 * ud + 0.7 * smoothstep01(ud));
+
+            // 側移與尾巴離牆：蹬牆後才開始
+            let ub = constrain((s - 0.45) / 0.55, 0, 1);
+            driftY = LAUNCH_DRIFT_Y * smoothstep01(ub);
+            tailBend = 0.61 * smoothstep01(ub);
+
+            // 前肢：一開始撐住牆面，蹬牆後放開
+            push = smoothstep01(constrain(s / 0.18, 0, 1))
+                 * (1 - smoothstep01(constrain((s - S1) / 0.35, 0, 1)));
+            blend = 0;
+          } else {
+            // ③ 收勢：身體已水平，仍順著慣性繼續外滑；尾巴最後擺正、四肢張開
+            let u = constrain((f - PUSH_FRAMES) / F3, 0, 1);
+            let e = 0.4 * u + 0.6 * smoothstep01(u);
+            theta = HALF_PI;
+            away = LAUNCH_PIVOT_AWAY + LAUNCH_COAST_AWAY * u;
+            driftY = LAUNCH_DRIFT_Y + LAUNCH_COAST_DRIFT_Y * u;
+            tailBend = lerp(0.61, HALF_PI, e);
+            push = 0;
+            blend = e;
+          }
+
+          // 以「尾巴根部貼牆點」為支點：撐牆期間固定不動，蹬牆後才離開牆面
+          let pivotX = WALL_FLUSH_X - away;
+          let pivotZ = WALL_TOP_LIMIT - WALL_TURN_DROP + NECK_OFFSET;
+          this.climbPitch = HALF_PI - theta;
+          this.wallAngle = PI;
+          this.headPitch = 0.14 * push; // 頭部微微往背側伸展
+          this.limbPress = 0;
+          this.launchLegPush = push;
+          this.launchLegBlend = blend;
+          this.pos.x = pivotX - NECK_OFFSET * sin(theta);
+          this.pos.z = pivotZ - NECK_OFFSET * cos(theta);
+          this.pos.y = this.launchBaseY - driftY;
+          // 尾巴：撐牆/蹬牆期間保持朝上貼著牆面，收勢時才擺正離開牆面
+          this.tailPitch = Math.max(0, theta - tailBend);
+
+          if (f > F1 + F2 + F3) {
+            // 最終姿勢與滑翔起點完全一致，直接接上滑翔（無段差）
+            this.climbPitch = 0;
+            this.headPitch = 0;
+            this.tailPitch = 0;
+            this.limbPress = 0;
+            this.launchLegPush = 0;
+            this.launchLegBlend = 0;
+            this.pos.x = pivotX - NECK_OFFSET;
+            this.pos.z = pivotZ;
+            this.pos.y = this.launchBaseY - (LAUNCH_DRIFT_Y + LAUNCH_COAST_DRIFT_Y);
+            this.startGlideLeap();
+          }
+        } else if (this.state === 'CLIMBING_DOWN') {
+          // 選擇一：轉頭完畢，順著牆面垂直往下爬回地面
+          this.isMoving = true;
+          this.isTurning = false;
+          this.speed = this.maxSpeed;
+          this.pos.z -= this.speed;
+          this.walkCycle += this.speed * 0.055;
+
+          if (frameCount % 6 === 0) {
+            trail.push(createVector(this.pos.x - 2, this.pos.y, this.pos.z));
+            if (trail.length > 80) trail.shift();
+          }
+
+          // 接近地面交界處：頭部先抵達地面，隨即開始「頭先貼地、身體再跟著放下」的下牆動作
+          if (this.pos.z <= WALL_LAND_Z) {
+            this.pos.z = WALL_LAND_Z;
+            this.state = 'TRANSITION_TO_GROUND';
+            this.transitionProgress = 0;
+          }
+        } else if (this.state === 'TRANSITION_TO_GROUND') {
+          // 下牆收尾（與上牆完全對稱的鏡像動作，只是方向相反）：
+          // 階段一：身體仍貼著牆面繼續往下爬，頭部先繞頸部樞紐往背側（-Y 軸方向）轉，
+          //         以鼻尖為支點把頭放平，最後整顆頭與地面平行貼地。
+          // 階段二：頭部維持貼地，軀幹再以「頸部貼地點」為支點跟著翻下來，
+          //         尾尖沿牆面滑到地面，最後全身底面平貼地板。
+          this.isMoving = true;
+          this.isTurning = false;
+          this.heading = 0;
+          this.speed = this.maxSpeed * 0.8;
+          this.walkCycle += 0.1;
+          this.transitionProgress += 0.022; // 約 45 幀，兩階段連續不中斷
+
+          const DOWN_HEAD_END = 0.36; // 前 36% 先讓頭部放平貼地
+          let p = constrain(this.transitionProgress, 0, 1);
+          let t = p * (0.7 + 0.3 * p); // 起步即有速度，不會先停頓再開始
+
+          if (t < DOWN_HEAD_END) {
+            // ---- 階段一：頭部先放平貼地 ----
+            // 身體仍垂直貼牆，同步小幅下滑，讓頸部隨著頭部轉平而降到地面高度；
+            // 鼻尖 (距頸部 NECK_OFFSET) 全程釘在地面 z = 0 滑動。
+            let h = t / DOWN_HEAD_END;
+            this.climbPitch = HALF_PI;          // 軀幹仍完整貼在牆面上
+            this.headPitch = h * HALF_PI;       // 頭部往背側 (-Y 軸方向) 轉平
+            this.pos.x = WALL_FLUSH_X;
+            this.pos.z = NECK_OFFSET + NECK_OFFSET * cos(this.headPitch);
+            this.tailPitch = 0;
+            this.limbPress = 0;
+          } else {
+            // ---- 階段二：身體跟著頭部一起放平 ----
+            // 頸部貼地點固定在地面 (z = 0)，頭部世界朝向保持水平 → 全程貼地；
+            // 軀幹由貼牆垂直 (90°) 平順翻到貼地 (0°)，尾尖沿牆面 (x = 377) 滑下。
+            let v = (t - DOWN_HEAD_END) / (1 - DOWN_HEAD_END);
+            let q = HALF_PI * (1 - v); // climbPitch：90° -> 0°
+            this.climbPitch = q;
+            this.headPitch = q;        // 與軀幹同步回正，頭部始終與地面平行貼地
+            this.tailPitch = 0;        // 尾巴與身體同向，尾尖貼牆滑下
+            this.limbPress = (this.climbPitch - HALF_PI) * sin(this.climbPitch); // 四肢掌面漸回貼地
+            this.pos.x = WALL_FLUSH_X - TAIL_TIP_OFFSET * cos(q);
+            this.pos.z = NECK_OFFSET * sin(q);
+          }
+
+          if (t >= 1) {
+            this.climbPitch = 0;
+            this.headPitch = 0;
+            this.tailPitch = 0;
+            this.limbPress = 0;
+            this.wallAngle = 0;
+            this.pos.z = 0;
+            this.pos.x = WALL_FLUSH_X - TAIL_TIP_OFFSET;
+            this.heading = PI;
+            this.targetHeading = PI;
+            this.state = 'CRAWLING';
+            this.moveTotalFrames = int(random(130, 200));
+            this.moveCurrentFrame = 0;
+            this.currentMode = 'X';
+            this.currentModeName = '爬牆完畢回到地面 (向左漫遊)';
+          }
+        } else if (this.state === 'GLIDING') {
+          // 選擇二：在空中展開薄膜、後腳往後收，呈 T 字型緩慢滑翔！
+          this.isMoving = true;
+          this.isTurning = false;
+          this.glideProgress++;
+          let p = this.glideProgress / this.glideTotalFrames;
+
+          // 平滑滑翔路徑 (向場地中央偏西飛行)
+          this.pos.x = lerp(this.glideStartX, this.glideTargetX, p);
+          this.pos.y = lerp(this.glideStartY, this.glideTargetY, p);
+
+          // 高度平緩下降 (前半段維持充裕空氣動力浮力，後段平緩減速接地)
+          let glideHeightFactor = 1 - Math.pow(p, 1.25);
+          this.pos.z = this.glideStartZ * glideHeightFactor;
+
+          // 四肢保持 T 字型滑翔翼展，帶微幅風阻氣流律動
+          this.walkCycle += 0.04;
+
+          // 記錄半空中滑翔軌跡
+          if (frameCount % 4 === 0) {
+            trail.push(createVector(this.pos.x, this.pos.y, this.pos.z));
+            if (trail.length > 80) trail.shift();
+          }
+
+          // 著陸觸地判斷
+          if (this.glideProgress >= this.glideTotalFrames || this.pos.z <= 1) {
+            this.pos.z = 0;
+            this.climbPitch = 0;
+            this.headPitch = 0;
+            this.tailPitch = 0;
+            this.limbPress = 0;
+            this.wallAngle = 0;
+            this.heading = PI; // 著陸後朝向場內 (西向)
+            this.targetHeading = PI;
+            this.state = 'GLIDE_LANDED';
+            this.landTimer = 35; // 著陸緩衝 35 幀，四肢由 T 姿平順收攏站穩
+          }
+        } else if (this.state === 'GLIDE_LANDED') {
+          // 著陸收勢：四肢由 T 字姿態平順恢復為地面站立姿態
+          this.speed = 0;
+          this.isMoving = false;
+          this.landTimer--;
+          if (this.landTimer <= 0) {
+            this.state = 'CRAWLING';
+            this.moveTotalFrames = int(random(130, 200));
+            this.moveCurrentFrame = 0;
+            this.currentMode = 'X';
+            this.currentModeName = '滑翔著陸完畢 (向西漫遊)';
+          }
+        } else if (this.state === 'WAITING') {
+          // 停頓休息狀態：完全靜止不自轉，帶微幅呼吸律動
+          this.speed = 0;
+          this.isMoving = false;
+          this.isTurning = false;
+          this.waitTimer--;
+          this.breathePhase += 0.05;
+
+          if (this.waitTimer <= 0) {
+            this.startNewMove();
+          }
+        } else if (this.state === 'ALIGNING_TURN' || this.state === 'WALL_TURNING') {
+          /* ==============================================================
+             原地平滑轉身階段：先旋轉對齊目標座標，轉動時四肢踏步掃動！
+             ============================================================== */
+          this.isMoving = true;
+          this.isTurning = true;
+
+          let diff = this.targetHeading - this.heading;
+          while (diff < -PI) diff += TWO_PI;
+          while (diff > PI) diff -= TWO_PI;
+
+          let turnStep = 0.07; // 溫和自然的轉身角速度
+
+          if (abs(diff) > turnStep) {
+            this.heading += Math.sign(diff) * turnStep;
+            this.walkCycle += 0.12;
+          } else {
+            this.heading = this.targetHeading;
+            this.state = 'CRAWLING';
+            this.isTurning = false;
+
+            if (this.state === 'WALL_TURNING') {
+              this.moveTotalFrames = int(random(110, 190));
+              this.moveCurrentFrame = int(this.moveTotalFrames * 0.15);
+            }
+          }
+        } else if (this.state === 'CRAWLING') {
+          /* ==============================================================
+             正常前進移動階段：已與目標對齊，直行出發
+             （若有路徑點，例如繞開水池或走向水池，則改成追蹤路徑點）
+             ============================================================== */
+          this.isMoving = true;
+          this.isTurning = false;
+          this.moveCurrentFrame++;
+
+          // 靠近水池時做一次隨機決定：繞開 or 下去游泳
+          this.updatePoolDecision();
+
+          if (this.walkTarget) {
+            // ---- 路徑點導引：平滑轉向、接近時減速 ----
+            let wdx = this.walkTarget.x - this.pos.x;
+            let wdy = this.walkTarget.y - this.pos.y;
+            let wdist = Math.hypot(wdx, wdy);
+            // 走向水池時要停得精準一點（3），下水位置才會剛好停在池邊
+            if (wdist < (this.poolMode === 'BATHE' ? 3 : 16)) {
+              this.advanceWalkPath();
+              return;
+            }
+            let wantHeading = Math.atan2(wdy, wdx);
+            let dH = wantHeading - this.heading;
+            while (dH < -PI) dH += TWO_PI;
+            while (dH > PI) dH -= TWO_PI;
+            this.heading += constrain(dH, -0.05, 0.05);
+            this.speed = this.maxSpeed * constrain(wdist / 80, 0.45, 1);
+          } else {
+            // 平滑速度曲線：起步加速 -> 勻速巡航 -> 準備停頓前漸漸放慢減速
+            let progress = this.moveCurrentFrame / this.moveTotalFrames;
+            if (progress < 0.15) {
+              this.speed = this.maxSpeed * sin((progress / 0.15) * HALF_PI);
+            } else if (progress < 0.60) {
+              this.speed = this.maxSpeed;
+            } else {
+              let decelRatio = (1.0 - progress) / 0.40;
+              this.speed = this.maxSpeed * sin(decelRatio * HALF_PI);
+            }
+          }
+
+          // 邊界感知與避碰
+          let maxX = BOUND_X - SAFE_MARGIN;
+          let maxY = BOUND_Y - SAFE_MARGIN;
+          let cosA = cos(this.heading);
+          let sinA = sin(this.heading);
+
+          // 關鍵修改：鼻尖位於 pos.x + 56，提前於牆面外 90 單位就啟動爬牆，
+          // 讓生物有足夠距離「一邊小幅靠近、一邊把頭抬起來貼牆」。
+          if (this.pos.x >= WALL_X - 90 && cosA > 0.05) {
+            this.startClimbWall();
+            return;
+          } else if (this.pos.x <= ROAM_MIN_X && cosA < -0.05) {
+            this.triggerWallPivot('LEFT');
+            return;
+          } else if (this.pos.y >= maxY && sinA > 0.05) {
+            this.triggerWallPivot('BOTTOM');
+            return;
+          } else if (this.pos.y <= -maxY && sinA < -0.05) {
+            this.triggerWallPivot('TOP');
+            return;
+          }
+
+          // 沿已對齊的方向向前平移
+          let dx = cos(this.heading) * this.speed;
+          let dy = sin(this.heading) * this.speed;
+
+          // 水池是障礙物：除非正在執行「下水」決定，否則身體不會走進池子
+          if (this.poolMode !== 'BATHE' && this.poolMode !== 'AVOID') {
+            const poolMargin = 30;   // 身體半寬再加上一點餘裕
+            const nx = this.pos.x + dx;
+            const ny = this.pos.y + dy;
+            const insideNowPool =
+              Math.abs(this.pos.x - POOL_X) < POOL_W / 2 + 6 &&
+              Math.abs(this.pos.y - POOL_Y) < POOL_H / 2 + 6;
+            const wouldEnterPool =
+              Math.abs(nx - POOL_X) < POOL_W / 2 + poolMargin &&
+              Math.abs(ny - POOL_Y) < POOL_H / 2 + poolMargin;
+            if (!insideNowPool && wouldEnterPool) {
+              this.startPoolDetour();
+              return;
+            }
+          }
+
+          this.pos.x += dx;
+          this.pos.y += dy;
+
+          this.pos.x = constrain(this.pos.x, ROAM_MIN_X, maxX);
+          this.pos.y = constrain(this.pos.y, -maxY, maxY);
+
+          // 四肢貼平 XY 面扇形掃動
+          this.walkCycle += this.speed * 0.055;
+
+          if (frameCount % 6 === 0 && this.speed > 0.1) {
+            trail.push(createVector(this.pos.x, this.pos.y, this.pos.z));
+            if (trail.length > 80) trail.shift();
+          }
+
+          // 移動步數用盡 -> 速度平滑歸零，進入 1-5 秒停頓（走路徑點時不計時）
+          if (!this.walkTarget && this.moveCurrentFrame >= this.moveTotalFrames) {
+            this.state = 'WAITING';
+            this.speed = 0;
+            this.isMoving = false;
+            this.waitTimer = this.getRandomWaitFrames();
+          }
+        }
+      }
+
+      render() {
+        push();
+        translate(this.pos.x, this.pos.y, this.pos.z);
+
+        if (this.state === 'GLIDING') {
+          // 空中 T 字型滑翔姿態
+          // 1. 朝向 -X (場地中央西向滑翔)
+          rotateZ(PI);
+          // 2. 迎風俯衝滑翔迎角 (鼻尖向下微傾滑翔，接地前 15% 拉平仰頭平順觸地)
+          let p = this.glideProgress / this.glideTotalFrames;
+          // 起飛前 12% 由水平 (0) 平順帶入俯衝迎角 (-0.12)，銜接蹬牆結束時的水平姿勢
+          let glidePitch;
+          if (p < 0.12) {
+            glidePitch = lerp(0, -0.12, smoothstep01(p / 0.12));
+          } else if (p < 0.85) {
+            glidePitch = -0.12;
+          } else {
+            glidePitch = map(p, 0.85, 1.0, -0.12, 0.04);
+          }
+          rotateY(glidePitch);
+          // 3. 氣流微幅橫滾晃動
+          let airBank = sin(this.glideProgress * 0.08) * 0.05;
+          rotateX(airBank);
+        } else if (this.state === 'GLIDE_LANDED') {
+          // 落地收攏姿態
+          rotateZ(PI);
+        } else if (this.state === 'WALL_TOP_LAUNCH') {
+          // 牆頂起跳：身體由「頭下腳上貼牆」連續翻到「與地面水平」，
+          // climbPitch 由 90° 遞減到 0°，旋轉軸保持在尾巴根部貼牆點上
+          rotateY(-this.climbPitch);
+          rotateZ(PI);
+        } else if (this.climbPitch === 0) {
+          // 完全在地面上：繞 Z 軸旋轉航向
+          rotateZ(this.heading);
+        } else if (this.climbPitch >= HALF_PI) {
+          // 完全在垂直右牆上：仰角 90 度貼附右牆 (肚皮向 +X，背部向 -X，頭頂預設向 +Z 向上爬)
+          rotateY(-HALF_PI);
+          // 牆面上的航向旋轉 (wallAngle = 0 朝上爬，wallAngle = PI 朝下爬)
+          rotateZ(this.wallAngle);
+        } else {
+          // 地面與牆面之間的弧形過渡：
+          // 上牆 = heading=0 + rotateY(-climbPitch)，身體以尾根為支點翻正；
+          // 下牆 = heading=PI + rotateY(+climbPitch)，鼻尖朝下、以鼻尖著地點為支點放平 (完全鏡像)
+          if (this.state === 'TRANSITION_TO_GROUND') {
+            rotateZ(PI);
+            rotateY(this.climbPitch);
+          } else {
+            rotateZ(this.heading);
+            rotateY(-this.climbPitch);
+          }
+        }
+
+        // 爬行/轉身時軀幹橫向律動 (滑翔時保持穩定)
+        let spineWave = (!this.isGliding && this.isMoving && (this.speed > 0.05 || this.isTurning)) ? sin(this.walkCycle) : 0;
+        let bodyYaw = spineWave * 0.12;
+        rotateZ(bodyYaw);
+
+        // 入水時的前半身下潛：以臀部（local x = -28）為支點，把身體前段往下轉。
+        // 尾巴與後腳不跟著轉，會留在岸上，所以岸上的部分不會沉進地面。
+        const poolPitch = this.poolBodyPitch;
+        if (poolPitch !== 0) {
+          translate(-28, 0, 0);
+          rotateY(poolPitch);
+          translate(28, 0, 0);
+        }
+
+        // 停頓時微幅呼吸感
+        let breatheOffset = (!this.isMoving && this.climbPitch === 0 && !this.isGliding) ? sin(this.breathePhase) * 0.6 : 0;
+
+        const grayTorso = color(140, 144, 150);
+        const grayHead  = color(155, 160, 166);
+        const grayTail  = color(125, 129, 135);
+        const grayLimb  = color(110, 115, 122);
+        const strokeCol = color(45, 48, 54);
+
+        const isInPool = this.state === 'POOL_SINKING' || this.state === 'POOL_SWIMMING' ||
+                         this.state === 'POOL_SOAK' || this.state === 'POOL_RISING' ||
+                         this.state === 'POOL_CLIMBING_OUT';
+        let poolFade = 0;
+        if (isInPool) {
+          if (this.state === 'POOL_CLIMBING_OUT') {
+            // 爬出水池時，根據身體高度反算淡化量（越接近水面越清晰）
+            poolFade = constrain(map(this.pos.z, 0, POOL_SWIM_Z, 0, 1), 0, 1);
+          } else {
+            poolFade = this.sinkAmount;
+          }
+        }
+
+        if (poolFade > 0.01) {
+          // 泡水部分：外框顏色漸亮、透明度降低，模擬從陸地看水中生物的模糊效果
+          stroke(
+            lerp(45, 105, poolFade),
+            lerp(48, 112, poolFade),
+            lerp(54, 125, poolFade),
+            lerp(255, 45, poolFade)
+          );
+          strokeWeight(1.3);
+        } else {
+          stroke(strokeCol);
+          strokeWeight(1.3);
+        }
+
+        /* 【第 1 塊：身體】 */
+        fill(grayTorso);
+        box(56, 42 + breatheOffset, 18);
+
+        /* 【雌性限定】背上小口袋 + 帶孩子
+           繪製順序很重要（p5 的方塊邊線會浮在前景）：
+           1. 先把孩子被口袋蓋住的部分（尾巴／後肢／軀幹後段）畫好，而且不畫外框
+           2. 再畫口袋本體蓋上去
+           3. 最後畫露出口袋的軀幹前段、前肢與頭（這幾塊保留外框） */
+        if (creatureGender === 'female') {
+          if (carryBaby) this.renderBabyHiddenPart();
+          this.renderBackPocket();
+          if (carryBaby) this.renderBabyVisiblePart();
+        }
+
+        /* 【第 2 塊：頭部】 */
+        push();
+        translate(28, 0, 0);
+        let headYaw = (!this.isGliding && this.isMoving && (this.speed > 0.05 || this.isTurning)) ? -spineWave * 0.15 : 0;
+        rotateZ(headYaw);
+        // 抬頭貼牆：頭部繞頸部樞紐上仰，讓頭部與牆面保持平行貼齊
+        // （水池游泳時也沿用這個角度，把頭抬約 30 度）
+        rotateY(-this.headPitch);
+        translate(14, 0, 0);
+        // 頭部泡水時外框與身體同樣淡化
+        if (poolFade > 0.01) {
+          stroke(
+            lerp(45, 105, poolFade),
+            lerp(48, 112, poolFade),
+            lerp(54, 125, poolFade),
+            lerp(255, 45, poolFade)
+          );
+        }
+        fill(grayHead);
+        box(28, 30, 16);
+
+        /* 頭頂穩定發紅光之超級小立方體（往前移，整組裝置都待在頭頂範圍內） */
+        push();
+        noStroke();
+        emissiveMaterial(255, 30, 30);
+        fill(255, 40, 40);
+        translate(9, 0, 9);
+        box(2, 2, 2);
+        pop();
+
+        /* 紅點兩旁：兩根超細且與地面垂直的長方體 */
+        push();
+        noStroke();
+        fill(150, 155, 165);
+        translate(9, -4, 11);
+        box(1.0, 1.0, 6);
+        pop();
+        push();
+        noStroke();
+        fill(150, 155, 165);
+        translate(9, 4, 11);
+        box(1.0, 1.0, 6);
+        pop();
+
+        /* 紅點裝置後方：鯊魚鰭造型天線
+           只用一個幾何塊：三角柱薄片（p5 的 cylinder 以 4 段畫出三角形截面），
+           三角形尖端朝上並往後（-X，朝頸部方向）斜掠，形成鯊魚鰭輪廓，
+           風格與本體的簡約幾何一致。鰭底略為埋進頭頂，讓接面乾淨、不會浮在空中。
+           位置往前移，讓整片鰭（含尖端與鰭底）都落在頭頂範圍內，不超出到軀幹。
+           外框：先墊一片「略大、略薄」的深色鰭，再疊上原本的灰色鰭，
+           深色只在輪廓邊緣露出一圈，形成與頭部、軀幹一致的深色外邊框。 */
+        push();
+        noLights();
+        noStroke();
+        fill(45, 48, 54);
+        translate(-5.14, 0, 8.0);
+        rotateY(-0.5236);
+        scale(0.8, 1, 1);
+        cylinder(13, 2.3, 4);          // 深色外框底片（比灰鰭大一圈、薄一點）
+        pop();
+        setupLighting();
+
+        push();
+        noStroke();
+        fill(150, 155, 165);
+        translate(-5.14, 0, 8.0);     // 頭頂後方，緊接在紅點裝置之後，整片鰭都在頭頂上
+        rotateY(-0.5236);              // 尖端朝上、向後斜掠（約 30°，比原本更緩）
+        scale(0.8, 1, 1);              // 稍微收窄鰭底寬度
+        cylinder(12, 2.8, 4);          // 一個幾何塊的三角柱（4 段＝三角形截面）
+        pop();
+
+        pop();
+
+        /* 【第 4、5 塊：前肢】 (跟著前半身一起下潛) */
+        let sweepAmplitude = this.isTurning ? 0.38 : map(this.speed, 0, this.maxSpeed, 0, 0.42);
+
+        this.renderFrontMembrane(18, 21, 1, this.walkCycle, sweepAmplitude);
+        this.renderXYGroundSweepingLimb(18, 21, 1, this.walkCycle, sweepAmplitude, grayLimb, false);
+        this.renderFrontMembrane(18, -21, -1, this.walkCycle + PI, sweepAmplitude);
+        this.renderXYGroundSweepingLimb(18, -21, -1, this.walkCycle + PI, sweepAmplitude, grayLimb, false);
+
+        // 回到原本的水平座標系：尾巴與後腳不跟著前傾，留在岸上
+        if (poolPitch !== 0) {
+          translate(-28, 0, 0);
+          rotateY(-poolPitch);
+          translate(28, 0, 0);
+        }
+
+        /* 【第 3 塊：尾巴】 */
+        push();
+        translate(-28, 0, 0);
+        let tailYaw = (!this.isGliding && this.isMoving && (this.speed > 0.05 || this.isTurning)) ? -spineWave * 0.32 : 0;
+        rotateZ(tailYaw);
+        // 貼牆上翻：尾巴繞尾根樞紐上仰，讓尾巴與身體一樣貼平牆面 (先貼地、再貼牆)
+        rotateY(this.tailPitch);
+        translate(-36, 0, 0);
+        fill(grayTail);
+        box(72, 12, 10);
+
+        /* 尾巴：三個長方形薄片 (長邊旋轉至與尾巴垂直、稍微往根部移動、保持放大1.5倍與2倍間隔、緊貼尾巴向上表面) */
+        push();
+        noStroke();
+        fill(grayTail);
+        // 稍微往根部移動 (從原先尾尖 -36 移至 -18，更穩固座落於尾巴表面)
+        translate(-18, 0, 0);
+        // 旋轉至長邊與尾巴垂直 (rotateZ(HALF_PI))
+        rotateZ(HALF_PI);
+
+        // 尺寸放大 1.5 倍：長度 18->27、寬度 4.5->6.75、厚度 0.8->1.2
+        // 雌性：三個長方形縮小到原先的 2/3（連同間隔一起等比例縮小）
+        const finScale = (creatureGender === 'female') ? (2 / 3) : 1;
+        const rectL = 27 * finScale;
+        const rectW = 6.75 * finScale;
+        const rectH = 1.2 * finScale;
+        // 間隔拉開至原先的 2 倍：原先 6 -> 12
+        const rectSpacing = 12 * finScale;
+        // 確保與尾巴向上的面相黏：尾巴 box(72, 12, 10) 頂面在 Z = 10 / 2 = 5.0，中心高度設為 5.0 + rectH / 2
+        const tailTopZ = 5.0;
+        const attachZ = tailTopZ + rectH / 2;
+
+        for (let i = -1; i <= 1; i++) {
+          push();
+          translate(0, i * rectSpacing, attachZ);
+          box(rectL, rectW, rectH);
+          pop();
+        }
+        pop();
+
+        pop();
+
+        /* 【第 6、7 塊：後肢】 (留在岸上，不跟著前半身下潛) */
+        this.renderXYGroundSweepingLimb(-18, 21, 1, this.walkCycle + PI, sweepAmplitude, grayLimb, true);
+        this.renderXYGroundSweepingLimb(-18, -21, -1, this.walkCycle, sweepAmplitude, grayLimb, true);
+
+        pop();
+      }
+
+      /* 泡水時，在水面「之後」補畫軀幹頂面（區域座標 z 最大的那一面）的外框。
+         為什麼要另外補畫：頂面外框離水面最近，p5 描邊會略過半透明水面，
+         維持陸地上的灰亮框線，讓軀幹看起來像浮在水面上一樣。
+         這裡在水面畫完後，用和泡水四肢相同的水色調重畫一圈頂面外框，
+         讓軀幹也呈現泡在水裡的樣子，同時保留清楚的身體輪廓。 */
+      renderSubmergedTorsoOutline() {
+        const isInPool = this.state === 'POOL_SINKING' || this.state === 'POOL_SWIMMING' ||
+                         this.state === 'POOL_SOAK' || this.state === 'POOL_RISING' ||
+                         this.state === 'POOL_CLIMBING_OUT';
+        if (!isInPool) return;
+
+        let poolFade = 0;
+        if (this.state === 'POOL_CLIMBING_OUT') {
+          poolFade = constrain(map(this.pos.z, 0, POOL_SWIM_Z, 0, 1), 0, 1);
+        } else {
+          poolFade = this.sinkAmount;
+        }
+        if (poolFade <= 0.01) return;
+
+        // 與 render() 相同的呼吸起伏（影響軀幹 Y 方向尺寸）
+        const breatheOffset = (!this.isMoving && this.climbPitch === 0 && !this.isGliding) ? sin(this.breathePhase) * 0.6 : 0;
+        const halfY = (42 + breatheOffset) / 2;
+
+        push();
+        translate(this.pos.x, this.pos.y, this.pos.z);
+        rotateZ(this.heading);
+        const spineWave = (!this.isGliding && this.isMoving && (this.speed > 0.05 || this.isTurning)) ? sin(this.walkCycle) : 0;
+        rotateZ(spineWave * 0.12);
+        if (this.poolBodyPitch !== 0) {
+          translate(-28, 0, 0);
+          rotateY(this.poolBodyPitch);
+          translate(28, 0, 0);
+        }
+
+        // 關閉深度測試，讓外框畫在水面之上，不會被半透明水面遮住或濾色。
+        const gl = drawingContext;
+        gl.disable(gl.DEPTH_TEST);
+        noFill();
+        stroke(
+          lerp(45, 72, poolFade),    // 泡水時趨近水面/四肢的水色調
+          lerp(48, 122, poolFade),
+          lerp(54, 150, poolFade)
+        );
+        strokeWeight(1.3);
+        beginShape();
+        vertex(-28, -halfY, 9.02);
+        vertex( 28, -halfY, 9.02);
+        vertex( 28,  halfY, 9.02);
+        vertex(-28,  halfY, 9.02);
+        endShape(CLOSE);
+        gl.enable(gl.DEPTH_TEST);
+        pop();
+      }
+
+      // 雌性背上的口袋（俯看是一片貼在背上的薄片）。
+      //   沒帶孩子時：平貼在背上的一片。
+      //   帶孩子時：被孩子撐起來，變成一個淺淺的袋體（底面貼在背上、頂面蓋住孩子後半段），
+      //   孩子的身體從袋子前緣冒出來，所以不會出現「飄在半空的板子」。
+      renderBackPocket() {
+        push();
+        translate(POCKET_OFFSET_X, 0, 0);
+        noStroke();
+        fill(126, 130, 137);
+        if (carryBaby) {
+          const topZ = BABY_BODY_Z + 9 * BABY_SCALE + 0.03;   // 蓋在孩子背上的高度
+          const h = topZ - POCKET_Z;
+          translate(0, 0, POCKET_Z + h / 2);
+          box(POCKET_L, POCKET_W, h);
+        } else {
+          translate(0, 0, POCKET_Z + POCKET_T / 2);
+          box(POCKET_L, POCKET_W, POCKET_T);
+        }
+        pop();
+      }
+
+      // 兩隻孩子被口袋蓋住的部分：尾巴、尾鰭、後肢、軀幹後段。
+      //   這些全部「不畫外框」—— p5 的方塊邊線會浮在口袋表面上（看起來像軀幹框線透出來）。
+      renderBabyHiddenPart() {
+        const s = BABY_SCALE;
+        const splitLocal = (POCKET_OFFSET_X + POCKET_L / 2 - BABY_OFFSET_X) / s; // 軀幹被口袋前緣切開的位置
+
+        for (const babySign of [1, -1]) {
+          const babyY = babySign * BABY_OFFSET_Y;
+          push();
+          translate(BABY_OFFSET_X, babyY, BABY_BODY_Z);
+          scale(s);
+          noStroke();
+
+          // 軀幹後段
+          fill(168, 172, 178);
+          push();
+          translate((-28 + splitLocal) / 2, 0, 0);
+          box(splitLocal + 28, 42, 18);
+          pop();
+
+          // 尾巴（成體的一半長：72 → 36）+ 尾鰭（等比例縮小）
+          fill(152, 156, 162);
+          push();
+          translate(-46, 0, 0);
+          box(36, 12, 10);
+          pop();
+          push();
+          translate(-46, 0, 5.3);
+          rotateZ(HALF_PI);
+          for (let i = -1; i <= 1; i++) {
+            push();
+            translate(0, i * 6, 0);
+            box(13.5, 3.4, 0.6);
+            pop();
+          }
+          pop();
+
+          // 後肢（指向尾巴 −X，整隻收在口袋裡）
+          fill(136, 140, 146);
+          for (const side of [1, -1]) {
+            push();
+            translate(-18, 21 * side, 0);
+            rotateZ(HALF_PI);
+            translate(0, 12.5, 0);
+            box(12, 25, 6);
+            pop();
+          }
+
+          pop();
+        }
+      }
+
+      // 兩隻孩子露出口袋的部分：軀幹前段、前肢、頭（這幾塊保留外框）。
+      //   兩隻並排在口袋中（±BABY_OFFSET_Y），前肢與頭部探出口袋。
+      renderBabyVisiblePart() {
+        const s = BABY_SCALE;
+        const splitLocal = (POCKET_OFFSET_X + POCKET_L / 2 - BABY_OFFSET_X) / s;
+        const headH = 16 * s;
+
+        for (let idx = 0; idx < 2; idx++) {
+          const babySign = (idx === 0) ? 1 : -1;
+          const babyY = babySign * BABY_OFFSET_Y;
+          const breathePhase = sin(frameCount * 0.05 + idx * 0.8) * 0.18;
+
+          push();
+          translate(BABY_OFFSET_X, babyY, BABY_BODY_Z);
+          scale(s);
+
+          // 前肢先畫：掛點在軀幹兩側 18,±21（與成體完全相同），只是整隻孩子往前挪，
+          // 肢體就跟著露到口袋外，不需要另外調整位置或角度。
+          // （小方塊不畫外框，否則邊線會浮在軀幹上，看起來像一疊夾子）
+          noStroke();
+          fill(118, 122, 128);
+          for (const side of [1, -1]) {
+            push();
+            translate(18, 21 * side, 0);
+            rotateZ(-HALF_PI);
+            translate(0, 12.5, 0);
+            box(12, 25, 6);
+            pop();
+          }
+
+          // 軀幹前段（從口袋前緣露出來的部分）：後畫，蓋掉前肢內側的接點
+          stroke(45, 48, 54);
+          strokeWeight(0.5);
+          fill(168, 172, 178);
+          push();
+          translate((28 + splitLocal) / 2, 0, 0);
+          box(28 - splitLocal, 42, 18);
+          pop();
+
+          pop();
+
+          // 頭（沒有頭頂紅點、沒有兩根天線），頭底貼著媽媽的背、微微上下呼吸
+          push();
+          translate(BABY_OFFSET_X + 42 * s, babyY, 9.04 + headH / 2 + breathePhase);
+          fill(184, 188, 194);
+          stroke(45, 48, 54);
+          strokeWeight(0.5);
+          box(28 * s, 30 * s, headH);
+          pop();
+        }
+      }
+
+      renderXYGroundSweepingLimb(mountX, mountY, side, phase, amplitude, col, isHind = false) {
+        push();
+        translate(mountX, mountY, 0);
+
+        let sweepAngle = 0;
+        if (this.isGliding && isHind) {
+          // 後腳往後收：向後旋轉 90 度緊貼尾巴兩側，與軀幹形成 T 字縱軸！
+          let tuckAngle = HALF_PI * side;
+          if (this.state === 'GLIDE_LANDED') {
+            // 著陸收勢緩衝：由 T 姿平滑恢復至地面行走四肢朝向
+            let tLand = 1 - constrain(this.landTimer / 35, 0, 1);
+            tuckAngle = lerp(HALF_PI * side, 0, tLand);
+          }
+          rotateZ(tuckAngle);
+        } else if (this.isGliding && !isHind) {
+          // 前肢向兩側張開成 T 字橫樑 (翼展)，微幅氣流抖動
+          let flutter = sin(frameCount * 0.2) * 0.03;
+          rotateZ(flutter * side);
+        } else if (this.isMoving && (this.speed > 0.05 || this.isTurning)) {
+          sweepAngle = sin(phase) * amplitude;
+          rotateZ(sweepAngle);
+        }
+
+        // 貼牆壓掌：四肢繞自身長軸翻轉，把掌面轉正壓平貼上牆面 (貼牆時為 0、翻正過程最大)
+        if (!this.isGliding && Math.abs(this.limbPress) > 0.001) {
+          rotateY(this.limbPress);
+        }
+
+        // 牆頂起跳：前肢往牆面（腹部側）撐出；後腳在收勢時往後收成滑翔 T 字姿
+        if (this.state === 'WALL_TOP_LAUNCH') {
+          if (!isHind && this.launchLegPush > 0.001) {
+            rotateX(-this.launchLegPush * 0.5 * side);
+          }
+          if (isHind && this.launchLegBlend > 0.001) {
+            rotateZ(HALF_PI * side * this.launchLegBlend);
+          }
+        }
+
+        let limbW = 12;
+        let limbL = 25;
+        let limbH = 6;
+
+        translate(0, (limbL / 2) * side, 0);
+        fill(col);
+        box(limbW, limbL, limbH);
+        pop();
+      }
+
+      renderFrontMembrane(mountX, mountY, side, phase, amplitude) {
+        // 前腳擺動角 (滑翔時保持張開成 T 字翼展)
+        let sweepAngle = 0;
+        if (this.isGliding) {
+          sweepAngle = sin(frameCount * 0.2) * 0.03 * side;
+        } else if (this.isMoving && (this.speed > 0.05 || this.isTurning)) {
+          sweepAngle = sin(phase) * amplitude;
+        }
+        let cosS = cos(sweepAngle);
+        let sinS = sin(sweepAngle);
+
+        // 1. 前腳內側附著點 (隨前腳掃動自然轉動)
+        let legAttachDist = 18;
+        let legX = mountX + (-6 * cosS - (legAttachDist * side) * sinS);
+        let legY = mountY + (-6 * sinS + (legAttachDist * side) * cosS);
+
+        // 牆頂起跳：前肢往牆面撐出時，薄膜腳端同步往腹部側擺，保持與前肢相連
+        let legZ = 0;
+        if (this.state === 'WALL_TOP_LAUNCH' && this.launchLegPush > 0.001) {
+          const pushA = this.launchLegPush * 0.5;
+          legY = mountY + (legY - mountY) * cos(pushA);
+          legZ = -legAttachDist * sin(pushA);
+        }
+
+        // 2. 軀幹側邊附著點 (牢牢錨定在軀幹外壁，不隨腳旋轉而縮進體內或脫離)
+        let trunkY = mountY + (!this.isMoving && !this.isGliding ? sin(this.breathePhase) * 0.3 * side : 0);
+        let trunkX = -8;
+
+        // 3. 腋下關節附著點 (前腳根部與軀幹相接處)
+        let jointX = 12;
+        let jointY = trunkY;
+
+        push();
+        noStroke();
+        fill(170, 175, 185, 210);
+
+        // 位於 Z = 0 (肢體厚度中心)，遠離地板 Z = -3，徹底根除 Z-fighting 閃爍與穿地消失
+        const memZ = 0.15;
+
+        // 雙面繪製以確保在任意 3D 視角與光照下皆穩定清晰可見、永不閃爍或消失
+        // 貼牆壓掌：薄膜與前肢同步，繞前肢根部 (mountX, mountY) 繞 Y 軸轉正貼上牆面
+        const pressA = (!this.isGliding) ? this.limbPress : 0;
+        const cosA = cos(pressA);
+        const sinA = sin(pressA);
+        const rollMemX = (x, z) => mountX + (x - mountX) * cosA + z * sinA;
+        const rollMemZ = (x, z) => -(x - mountX) * sinA + z * cosA;
+
+        // 薄膜腳端：只套用貼牆翻正 (roll)，其餘維持與前肢相連
+        const legPoint = (zSign) => {
+          const px = rollMemX(legX, zSign * memZ);
+          const pz = rollMemZ(legX, zSign * memZ) + legZ;
+          return [px, legY, pz];
+        };
+        const lp1 = legPoint(1);
+        const lp2 = legPoint(-1);
+
+        beginShape();
+        vertex(rollMemX(jointX, memZ), jointY, rollMemZ(jointX, memZ));
+        vertex(lp1[0], lp1[1], lp1[2]);
+        vertex(rollMemX(trunkX, memZ), trunkY, rollMemZ(trunkX, memZ));
+        endShape(CLOSE);
+
+        beginShape();
+        vertex(rollMemX(jointX, -memZ), jointY, rollMemZ(jointX, -memZ));
+        vertex(rollMemX(trunkX, -memZ), trunkY, rollMemZ(trunkX, -memZ));
+        vertex(lp2[0], lp2[1], lp2[2]);
+        endShape(CLOSE);
+
+        pop();
+      }
+    }
+
+    function toggleMove() {
+      autoMoveEnabled = !autoMoveEnabled;
+      const btn = document.getElementById('btn-run');
+      if (autoMoveEnabled) {
+        btn.textContent = '漫遊開關：開';
+        btn.classList.remove('active');
+      } else {
+        btn.textContent = '漫遊開關：停';
+        btn.classList.add('active');
+      }
+    }
+
+    function triggerNextMoveNow() {
+      creature.startNewMove();
+    }
+
+    // 雌雄切換：雄性 = 目前外觀；雌性 = 背上多一個小口袋 + 尾端三個長方形縮小成 2/3
+    function setGender(g) {
+      creatureGender = g;
+      if (g !== 'female') carryBaby = false;   // 只有雌性會帶孩子
+      const btn = document.getElementById('btn-sex');
+      if (g === 'female') {
+        btn.textContent = '性別：雌性';
+        btn.classList.add('female');
+      } else {
+        btn.textContent = '性別：雄性';
+        btn.classList.remove('female');
+      }
+      updateBabyButton();
+    }
+
+    function toggleGender() {
+      setGender(creatureGender === 'male' ? 'female' : 'male');
+    }
+
+    // 帶孩子：兩隻孩子 = 縮小版雄性個體，並排塞在雌性背上的口袋裡（沒有紅點與天線）
+    // 若目前是雄性，按下去會自動切成雌性再背上孩子
+    function toggleCarryBaby() {
+      if (creatureGender !== 'female') setGender('female');
+      carryBaby = !carryBaby;
+      updateBabyButton();
+    }
+
+    function updateBabyButton() {
+      const btn = document.getElementById('btn-baby');
+      if (carryBaby) {
+        btn.textContent = '帶孩子：開';
+        btn.classList.add('on');
+      } else {
+        btn.textContent = '帶孩子：關';
+        btn.classList.remove('on');
+      }
+    }
+
+    // 「立即下水」按鈕：若目前是暫停狀態，先恢復漫遊，再直接前往水池
+    function bathNow() {
+      if (!autoMoveEnabled) {
+        autoMoveEnabled = true;
+        const btn = document.getElementById('btn-run');
+        btn.textContent = '漫遊開關：開';
+        btn.classList.remove('active');
+      }
+      creature.goBathNow();
+    }
+
+    function climbWithChoice(choice) {
+      creature.forcedNextAction = choice;
+      creature.startClimbWall();
+    }
+
+    function updateHUD() {
+      const statusEl = document.getElementById('status-text');
+      if (!autoMoveEnabled) {
+        statusEl.innerHTML = `<span style="color:#ef4444">已手動暫停</span> | 座標：[X:${creature.pos.x.toFixed(0)}, Y:${creature.pos.y.toFixed(0)}, Z:${creature.pos.z.toFixed(0)}]`;
+        return;
+      }
+
+      if (creature.state === 'APPROACHING_WALL') {
+        statusEl.innerHTML = `狀態：<b style="color:#38bdf8">貼牆前奏：一邊小幅靠近牆面，一邊把頭抬起來與牆面平行貼齊 🧗‍♂️ (身體仍平貼地面)</b> | 座標：[X:${creature.pos.x.toFixed(0)}, Y:${creature.pos.y.toFixed(0)}, Z:${creature.pos.z.toFixed(0)}]`;
+      } else if (creature.state === 'TRANSITION_TO_WALL') {
+        statusEl.innerHTML = `狀態：<b style="color:#38bdf8">頭部已貼齊牆面，身體與四肢正以相同節奏轉正貼平牆面、掌面壓上牆 🧗‍♂️ (尾巴先貼地再順勢貼上牆)</b> | 座標：[X:${creature.pos.x.toFixed(0)}, Y:${creature.pos.y.toFixed(0)}, Z:${creature.pos.z.toFixed(0)}]`;
+      } else if (creature.state === 'CLIMBING_UP') {
+        statusEl.innerHTML = `狀態：<b style="color:#22c55e">順著右側牆面垂直往上爬中 🧗‍♂️ (全身貼齊牆面，尾部貼地) (高度 Z: ${creature.pos.z.toFixed(0)})</b> | 頂端邊界：${WALL_TOP_LIMIT} | 座標：[X:${creature.pos.x.toFixed(0)}, Y:${creature.pos.y.toFixed(0)}, Z:${creature.pos.z.toFixed(0)}]`;
+      } else if (creature.state === 'WALL_TOP_TURN') {
+        statusEl.innerHTML = `狀態：<b style="color:#f59e0b">觸及最頂端邊界！貼著牆面調頭中 🔄 (同步微幅下滑，尾巴不甩出牆外)</b> | 高度 Z: ${creature.pos.z.toFixed(0)} | 座標：[X:${creature.pos.x.toFixed(0)}, Y:${creature.pos.y.toFixed(0)}, Z:${creature.pos.z.toFixed(0)}]`;
+      } else if (creature.state === 'WALL_TOP_PAUSE') {
+        statusEl.innerHTML = `狀態：<b style="color:#f59e0b">【選擇二】牆頂蓄力：頭下腳上貼牆停頓 0.5 秒 ⏸️</b> | 座標：[X:${creature.pos.x.toFixed(0)}, Y:${creature.pos.y.toFixed(0)}, Z:${creature.pos.z.toFixed(0)}]`;
+      } else if (creature.state === 'WALL_TOP_LAUNCH') {
+        let launchF = creature.launchProgress;
+        let launchPhase;
+        if (launchF <= LAUNCH_PUSH1_FRAMES) {
+          launchPhase = '前肢撐牆，頭胸微微離開牆面（後腳與尾巴仍貼牆）';
+        } else if (launchF <= LAUNCH_PUSH1_FRAMES + LAUNCH_PUSH2_FRAMES) {
+          launchPhase = '前肢蹬牆，身體翻成水平並往 -Y 方向離開牆面（尾巴與後腳離牆）';
+        } else {
+          launchPhase = '尾巴最後離牆擺正，四肢張開成滑翔 T 字姿';
+        }
+        statusEl.innerHTML = `狀態：<b style="color:#38bdf8">【選擇二】牆頂起跳：${launchPhase} 🪂</b> | 座標：[X:${creature.pos.x.toFixed(0)}, Y:${creature.pos.y.toFixed(0)}, Z:${creature.pos.z.toFixed(0)}]`;
+      } else if (creature.state === 'CLIMBING_DOWN') {
+        statusEl.innerHTML = `狀態：<b style="color:#38bdf8">【選擇一】轉頭完畢，順著牆面垂直往下爬回地面 🧗‍♀️ (全身貼齊牆面) (高度 Z: ${creature.pos.z.toFixed(0)})</b> | 座標：[X:${creature.pos.x.toFixed(0)}, Y:${creature.pos.y.toFixed(0)}, Z:${creature.pos.z.toFixed(0)}]`;
+      } else if (creature.state === 'TRANSITION_TO_GROUND') {
+        statusEl.innerHTML = `狀態：<b style="color:#a855f7">頭部先彎下貼平地面，身體再以頸部貼地點為支點跟著放平，尾巴最後回到地面 (全程底面貼齊牆面與地板)</b> | 座標：[X:${creature.pos.x.toFixed(0)}, Y:${creature.pos.y.toFixed(0)}, Z:${creature.pos.z.toFixed(0)}]`;
+      } else if (creature.state === 'GLIDING') {
+        let glidePct = Math.round((creature.glideProgress / creature.glideTotalFrames) * 100);
+        statusEl.innerHTML = `狀態：<b style="color:#38bdf8">【選擇二】空中 T 字型薄膜緩慢滑翔中 🪂 (${glidePct}%)</b> | 高度 Z: ${creature.pos.z.toFixed(0)} | 座標：[X:${creature.pos.x.toFixed(0)}, Y:${creature.pos.y.toFixed(0)}, Z:${creature.pos.z.toFixed(0)}]`;
+      } else if (creature.state === 'GLIDE_LANDED') {
+        statusEl.innerHTML = `狀態：<b style="color:#22c55e">滑翔著陸！收攏四肢回到地面站立姿態 🛬</b> | 座標：[X:${creature.pos.x.toFixed(0)}, Y:${creature.pos.y.toFixed(0)}, Z:${creature.pos.z.toFixed(0)}]`;
+      } else if (creature.state === 'POOL_SINKING') {
+        statusEl.innerHTML = `狀態：<b style="color:#38bdf8">身體進入水面，慢慢沉進水裡、頭抬 30 度 🏊 (${Math.round(creature.sinkAmount * 100)}%)</b> | 座標：[X:${creature.pos.x.toFixed(0)}, Y:${creature.pos.y.toFixed(0)}, Z:${creature.pos.z.toFixed(0)}]`;
+      } else if (creature.state === 'POOL_SWIMMING') {
+        let swimDist = Math.hypot(POOL_X - creature.pos.x, POOL_Y - creature.pos.y).toFixed(0);
+        statusEl.innerHTML = `狀態：<b style="color:#38bdf8">沉在水裡，頭抬 30 度游向水池正中央 🐊 (距池心 ${swimDist})</b> | 座標：[X:${creature.pos.x.toFixed(0)}, Y:${creature.pos.y.toFixed(0)}, Z:${creature.pos.z.toFixed(0)}]`;
+      } else if (creature.state === 'POOL_SOAK') {
+        let soakLeft = Math.max(0, (POOL_SOAK_FRAMES - creature.soakTimer) / 60).toFixed(1);
+        statusEl.innerHTML = `狀態：<b style="color:#22c55e">沉在水池正中央休息 🐊 (身體沉浸水裡、頭抬 30 度、輕輕浮動)</b> | 還要停留 <b style="color:#f59e0b">${soakLeft} 秒</b> | 座標：[X:${creature.pos.x.toFixed(0)}, Y:${creature.pos.y.toFixed(0)}, Z:${creature.pos.z.toFixed(0)}]`;
+      } else if (creature.state === 'POOL_RISING' || creature.state === 'POOL_CLIMBING_OUT') {
+        const riseText = (creature.state === 'POOL_RISING')
+          ? '休息完畢，游回岸邊'
+          : '從水面浮起，慢慢爬出水池 💧';
+        statusEl.innerHTML = `狀態：<b style="color:#38bdf8">${riseText}</b> | 座標：[X:${creature.pos.x.toFixed(0)}, Y:${creature.pos.y.toFixed(0)}, Z:${creature.pos.z.toFixed(0)}]`;
+      } else if (creature.state === 'WAITING') {
+        let secRemaining = (creature.waitTimer / 60).toFixed(1);
+        statusEl.innerHTML = `狀態：<b style="color:#94a3b8">原地停頓休息中 (微幅呼吸律動)</b> | 下次移動倒數：<b style="color:#f59e0b">${secRemaining} 秒</b> | 座標：[X:${creature.pos.x.toFixed(0)}, Y:${creature.pos.y.toFixed(0)}, Z:${creature.pos.z.toFixed(0)}]`;
+      } else if (creature.state === 'ALIGNING_TURN') {
+        statusEl.innerHTML = `狀態：<b style="color:#a855f7">轉身對齊目標方向中 (手腳划動調頭 🔄)</b> | 目標航向：${(creature.targetHeading * 180 / PI).toFixed(0)}° | 座標：[X:${creature.pos.x.toFixed(0)}, Y:${creature.pos.y.toFixed(0)}, Z:${creature.pos.z.toFixed(0)}]`;
+      } else if (creature.state === 'WALL_TURNING') {
+        statusEl.innerHTML = `狀態：<b style="color:#f59e0b">碰壁原地轉向中 (四肢踏步轉身 🔄)</b> | 目標角：${(creature.targetHeading * 180 / PI).toFixed(0)}° | 座標：[X:${creature.pos.x.toFixed(0)}, Y:${creature.pos.y.toFixed(0)}, Z:${creature.pos.z.toFixed(0)}]`;
+      } else {
+        let speedPhase = '巡航中';
+        let progress = creature.moveCurrentFrame / creature.moveTotalFrames;
+        if (progress < 0.15) speedPhase = '起步加速中';
+        else if (progress > 0.60) speedPhase = '<span style="color:#f59e0b">平滑減速緩衝中...</span>';
+
+        statusEl.innerHTML = `模式：<b style="color:#38bdf8">${creature.currentModeName}</b> (${speedPhase}) | 座標：[X:${creature.pos.x.toFixed(0)}, Y:${creature.pos.y.toFixed(0)}, Z:${creature.pos.z.toFixed(0)}]`;
+      }
+    }
+  </script>
+</body>
+</html>
